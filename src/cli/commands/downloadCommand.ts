@@ -143,7 +143,8 @@ function selectSources(config: ResolvedConfig, system: ResolvedSystem, sourceFil
   if (systemSources.length === 0) {
     throw new RomkitError(
       `System ${system.id} has no sources configured.`,
-      `Add source names to "sources" of ${system.id} in ${config.configPath}, or download manually and use \`romkit import\`.`,
+      `In ${config.configPath}, either add "systems": ["${system.id}"] (or ["*"] for all systems) to a source, ` +
+        `or list source names in "sources" of ${system.id}. You can also download manually and use \`romkit import\`.`,
     );
   }
   if (!sourceFilter) return systemSources;

@@ -46,6 +46,11 @@ export interface SourceConfig {
   selectors?: SourceSelectors;
   /** Text shown by the site when nothing matched; lets romkit tell "no results" from "broken page". */
   noResultsText?: string | null;
+  /**
+   * Systems that use this source, by id, or ["*"] for every system. This is an
+   * alternative to listing the source in each system's "sources"; both can be combined.
+   */
+  systems?: string[];
   /** Per-system value for the {system} placeholder, keyed by system id, e.g. { "PS1": "psx" }. */
   systemParams?: Record<string, string>;
   /** Free-form settings for custom adapters. */

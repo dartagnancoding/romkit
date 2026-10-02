@@ -41,8 +41,49 @@ export function validateConfigFile(raw: unknown): string[] {
   validateMatching(raw.matching, problems);
   const sourcesByName = validateSources(raw.sources, problems);
   validateSystems(raw.systems, sourcesByName, problems);
+  validateSourceSystemLists(raw.sources, raw.systems, problems);
 
   return problems;
+}
+
+/**
+ * Checks each source's own "systems" list: ids must exist (or be "*"), and a
+ * source whose URL has {system} needs a systemParams value for every system it covers.
+ */
+function validateSourceSystemLists(sources: unknown, systems: unknown, problems: string[]): void {
+  if (!Array.isArray(sources) || !Array.isArray(systems)) return;
+  const systemIds = systems.filter(isObject).map((system) => system.id).filter(isNonEmptyString);
+
+  sources.forEach((source, sourceIndex) => {
+    if (!isObject(source) || source.systems === undefined) return;
+    const location = `sources[${sourceIndex}].systems`;
+    if (!Array.isArray(source.systems) || !source.systems.every(isNonEmptyString)) {
+      problems.push(`${location} must be a list of system ids, or ["*"] for all systems.`);
+      return;
+    }
+
+    const coveredIds: string[] = [];
+    for (const listedId of source.systems) {
+      if (listedId === "*") {
+        coveredIds.push(...systemIds);
+        continue;
+      }
+      const matchingId = systemIds.find((systemId) => systemId.toLowerCase() === listedId.toLowerCase());
+      if (matchingId) coveredIds.push(matchingId);
+      else problems.push(`${location}: "${listedId}" is not a configured system id (configured: ${systemIds.join(", ") || "none"}).`);
+    }
+
+    const searchUrl = typeof source.searchUrl === "string" ? source.searchUrl : "";
+    const params = isObject(source.systemParams) ? source.systemParams : {};
+    if (searchUrl.includes("{system}")) {
+      const missingIds = [...new Set(coveredIds)].filter((systemId) => !isNonEmptyString(params[systemId]));
+      if (missingIds.length > 0) {
+        problems.push(
+          `Source "${String(source.name)}" uses {system} in its searchUrl but has no systemParams entry for: ${missingIds.join(", ")}.`,
+        );
+      }
+    }
+  });
 }
 
 function validateHttpSettings(http: unknown, problems: string[]): void {

@@ -21,6 +21,7 @@ import {
   type ConfigFile,
   type ResolvedConfig,
   type ResolvedSystem,
+  type SourceConfig,
   type SystemConfig,
 } from "./configTypes";
 import { validateConfigFile } from "./configValidation";
@@ -78,12 +79,33 @@ export function resolveConfig(rawFile: ConfigFile, configPath: string): Resolved
     http: { ...DEFAULT_HTTP_SETTINGS, ...rawFile.http },
     autoAcceptThreshold: rawFile.matching?.autoAcceptThreshold ?? DEFAULT_AUTO_ACCEPT_THRESHOLD,
     sources: rawFile.sources ?? [],
-    systems: rawFile.systems.map((system) => resolveSystem(system, libraryRoot, configDirectory)),
+    systems: rawFile.systems.map((system) => resolveSystem(system, rawFile.sources ?? [], libraryRoot, configDirectory)),
     rawFile,
   };
 }
 
-function resolveSystem(system: SystemConfig, libraryRoot: string, configDirectory: string): ResolvedSystem {
+/** True when a source opts into this system through its own "systems" list. */
+export function sourceAppliesToSystem(source: SourceConfig, systemId: string): boolean {
+  return (source.systems ?? []).some((listedId) => listedId === "*" || listedId.toLowerCase() === systemId.toLowerCase());
+}
+
+/**
+ * The sources a system searches, in order: first the ones the system lists itself,
+ * then the ones that opt into it via their own "systems" field (in config order).
+ */
+export function effectiveSourceNames(system: SystemConfig, sources: SourceConfig[]): string[] {
+  const sourceNames = [...(system.sources ?? [])];
+  const listedLowerNames = new Set(sourceNames.map((sourceName) => sourceName.toLowerCase()));
+  for (const source of sources) {
+    if (sourceAppliesToSystem(source, system.id) && !listedLowerNames.has(source.name.toLowerCase())) {
+      sourceNames.push(source.name);
+      listedLowerNames.add(source.name.toLowerCase());
+    }
+  }
+  return sourceNames;
+}
+
+function resolveSystem(system: SystemConfig, sources: SourceConfig[], libraryRoot: string, configDirectory: string): ResolvedSystem {
   return {
     id: system.id,
     mode: system.mode ?? "standard",
@@ -97,7 +119,7 @@ function resolveSystem(system: SystemConfig, libraryRoot: string, configDirector
       keepTags: system.naming?.keepTags ?? DEFAULT_NAMING.keepTags,
     },
     compressToZip: system.compressToZip ?? false,
-    sourceNames: system.sources ?? [],
+    sourceNames: effectiveSourceNames(system, sources),
   };
 }
 

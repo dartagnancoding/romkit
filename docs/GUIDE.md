@@ -276,8 +276,15 @@ Anything below `matching.autoAcceptThreshold` (default 0.9) is shown to you for 
 
 ## Sources
 
-Sources are defined once at the top level. Each system then lists, in order, the ones it may use.
-A site without Nintendo games, for example, is simply left out of GBA and SNES.
+Sources are defined once at the top level. There are two ways to connect a source to systems, and
+they can be combined:
+
+- **On the source**: `"systems": ["PS1", "PS2"]`, or `"systems": ["*"]` for every system. This is the
+  quickest way when a site covers many consoles.
+- **On the system**: `"sources": ["SiteA", "SiteB"]` in the system entry, which also sets the search order.
+
+A system searches its own `sources` list first, then the sources that list it in their `systems`, in
+config order. A site without Nintendo games, for example, is simply left out of GBA and SNES.
 
 ```jsonc
 {

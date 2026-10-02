@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { resolveConfig } from "../src/config/configLoader";
+import type { ConfigFile } from "../src/config/configTypes";
+import { validateConfigFile } from "../src/config/configValidation";
 import { locateSyntaxError, parseJsonWithComments, stripJsonComments } from "../src/config/jsonc";
 import { RomkitError } from "../src/errors";
 
@@ -46,5 +49,41 @@ describe("parse errors", () => {
   test("the error message names the line", () => {
     expect(() => parseJsonWithComments('{\n  "a": 1\n  "b": 2\n}', "romkit.config.json")).toThrow(/line 3/);
     expect(() => parseJsonWithComments("{", "x.json")).toThrow(RomkitError);
+  });
+});
+
+describe("source systems lists", () => {
+  const baseConfig = (sources: ConfigFile["sources"], gbaSources: string[] = []): ConfigFile => ({
+    libraryRoot: "E:/ROM",
+    sevenZipPath: "C:/7z.exe",
+    sources,
+    systems: [
+      { id: "GBA", folder: "Game Boy Advance", extensions: [".gba"], sources: gbaSources },
+      { id: "PS1", folder: "PlayStation", extensions: [".cue"] },
+    ],
+  });
+  const linkOnly = (name: string, systems: string[]) => ({ name, searchUrl: `https://${name}.example/?q={query}`, requiresJavaScript: true, systems });
+
+  test('["*"] adds the source to every system', () => {
+    const config = resolveConfig(baseConfig([linkOnly("Everywhere", ["*"])]), "C:/romkit/romkit.config.json");
+    expect(config.systems.map((system) => system.sourceNames)).toEqual([["Everywhere"], ["Everywhere"]]);
+  });
+
+  test("a system's own list comes first, opt-in sources follow without duplicates", () => {
+    const sources = [linkOnly("OptIn", ["gba"]), linkOnly("Listed", [])];
+    const config = resolveConfig(baseConfig(sources, ["Listed", "OptIn"]), "C:/romkit/romkit.config.json");
+    expect(config.systems[0]!.sourceNames).toEqual(["Listed", "OptIn"]);
+    expect(config.systems[1]!.sourceNames).toEqual([]);
+  });
+
+  test("unknown system ids and missing {system} params are reported", () => {
+    const problems = validateConfigFile(
+      baseConfig([
+        linkOnly("Typo", ["GBAA"]),
+        { ...linkOnly("PerSystem", ["*"]), searchUrl: "https://x.example/{system}?q={query}", systemParams: { GBA: "gba" } },
+      ]),
+    );
+    expect(problems.some((problem) => problem.includes('"GBAA" is not a configured system id'))).toBe(true);
+    expect(problems.some((problem) => problem.includes("no systemParams entry for: PS1"))).toBe(true);
   });
 });
