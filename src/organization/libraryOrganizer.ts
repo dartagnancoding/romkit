@@ -80,7 +80,8 @@ export async function placeRomUnit(request: PlacementRequest, prompter: Prompter
   if (conflictingPaths.length > 0) {
     const choice = request.assumeYes ? "skip" : await askConflictChoice(conflictingPaths, prompter);
     if (choice === "skip") {
-      logger.warn(`Skipped: ${conflictingPaths.map((conflictPath) => basename(conflictPath)).join(", ")} already exists.`);
+      const verb = conflictingPaths.length === 1 ? "already exists" : "already exist";
+      logger.warn(`Skipped: ${conflictingPaths.map((conflictPath) => basename(conflictPath)).join(", ")} ${verb}.`);
       return { status: "skipped" };
     }
     if (choice === "keep-both") {

@@ -5,7 +5,7 @@
  *   → pick one ROM (ask if several) → identify → confirm name → place in library
  */
 
-import { readdir, unlink } from "node:fs/promises";
+import { readdir, rename, unlink } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import type { ParsedFlags } from "../cli/argumentParser";
 import { confirmRomName } from "../cli/nameConfirmation";
@@ -17,10 +17,11 @@ import { RomkitError } from "../errors";
 import { detectArchiveFormat } from "../extraction/archiveDetector";
 import { buildRomUnits, unitFilePaths, type RomUnit } from "../extraction/romUnits";
 import { extractArchive } from "../extraction/sevenZip";
+import { detectRomExtension } from "../extraction/romSignatures";
 import { identifyRomUnit, loadIdentificationContext } from "../identification/romIdentifier";
 import { logger } from "../logging/logger";
 import { placeRomUnit } from "../organization/libraryOrganizer";
-import { fileStem, listFilesRecursive, lowercaseExtension, type TransferMode } from "../util/fileSystem";
+import { fileStem, listFilesRecursive, lowercaseExtension, transferFile, type TransferMode } from "../util/fileSystem";
 import { formatBytes } from "../util/format";
 
 export interface ProcessOptions {
@@ -44,6 +45,8 @@ export type ProcessOutcome = "placed" | "skipped";
 const MAX_NESTED_ARCHIVE_DEPTH = 2;
 
 export async function processAcquiredFile(inputPath: string, options: ProcessOptions): Promise<ProcessOutcome> {
+  if (options.system.mode === "arcade") return placeArcadeRomset(inputPath, options);
+
   const { system, config, workspace } = options;
 
   const archiveFormat = await detectArchiveFormat(inputPath);
@@ -57,6 +60,7 @@ export async function processAcquiredFile(inputPath: string, options: ProcessOpt
     }
     logger.info(`Extracting ${archiveFormat} archive...`);
     candidateFiles = await extractRecursively(inputPath, workspace.extractionDirectory, system, config.sevenZipPath);
+    candidateFiles = await rescueFilesWithoutExtension(candidateFiles, system);
     // Extracted files live in the temp folder, so they can simply be moved.
     transfer = "move";
   } else {
@@ -125,6 +129,87 @@ export async function processAcquiredFile(inputPath: string, options: ProcessOpt
   if (archiveFormat && options.removeSourceWhenDone) {
     await unlink(inputPath).catch((error) => logger.warn(`Could not delete ${inputPath}: ${(error as Error).message}`));
   }
+  return "placed";
+}
+
+/**
+ * Old dumps sometimes have no (or a wrong) extension, e.g. "GE00" for GoldenEye.
+ * Files whose extension is not accepted are checked by header; when the header
+ * reveals an accepted ROM type, the file is renamed in the temp folder
+ * ("GE00" → "GE00.z64") so the normal flow picks it up.
+ */
+async function rescueFilesWithoutExtension(filePaths: string[], system: ResolvedSystem): Promise<string[]> {
+  const resultPaths: string[] = [];
+  for (const filePath of filePaths) {
+    if (system.extensions.includes(lowercaseExtension(filePath))) {
+      resultPaths.push(filePath);
+      continue;
+    }
+    const detected = await detectRomExtension(filePath);
+    if (!detected || !system.extensions.includes(detected.extension)) {
+      resultPaths.push(filePath);
+      continue;
+    }
+    const renamedPath = join(dirname(filePath), `${fileStem(filePath)}${detected.extension}`);
+    await rename(filePath, renamedPath);
+    logger.info(`Recognized ${basename(filePath)} as a ${detected.description} ROM by its header.`);
+    resultPaths.push(renamedPath);
+  }
+  return resultPaths;
+}
+
+/** MAME short names: lowercase letters, digits and underscores ("sf2", "mslug3h"). */
+const ARCADE_SHORT_NAME_PATTERN = /^[a-z0-9_]+$/;
+
+/**
+ * Arcade systems (MAME/FBNeo): the zip/7z is the romset itself. It is moved into
+ * the library unchanged: no extraction, no identification, no renaming, since the
+ * emulator finds games by the exact short file name ("sf2.zip").
+ */
+async function placeArcadeRomset(inputPath: string, options: ProcessOptions): Promise<ProcessOutcome> {
+  const { system, config, workspace } = options;
+
+  const archiveFormat = await detectArchiveFormat(inputPath);
+  if (archiveFormat !== "zip" && archiveFormat !== "7z") {
+    throw new RomkitError(
+      `${basename(inputPath)} is not a zip or 7z file${archiveFormat ? ` (it is ${archiveFormat})` : ""}; arcade romsets must be .zip or .7z.`,
+      archiveFormat === "rar" ? "Extract it and import the .zip inside." : undefined,
+    );
+  }
+
+  // Downloaded files sometimes carry the wrong extension; give it the right one.
+  let romsetPath = inputPath;
+  let transfer: TransferMode = options.removeSourceWhenDone ? "move" : "copy";
+  const expectedExtension = `.${archiveFormat}`;
+  if (lowercaseExtension(inputPath) !== expectedExtension) {
+    romsetPath = join(workspace.downloadDirectory, `${fileStem(inputPath)}${expectedExtension}`);
+    await transferFile(inputPath, romsetPath, transfer);
+    transfer = "move";
+  }
+
+  const shortName = fileStem(romsetPath);
+  if (!ARCADE_SHORT_NAME_PATTERN.test(shortName)) {
+    logger.warn(
+      `"${shortName}" does not look like a MAME short name (e.g. "sf2", "mslug"). ` +
+        "The emulator may not find it; rename it to the romset's short name if needed.",
+    );
+  }
+
+  const placement = await placeRomUnit(
+    {
+      unit: { kind: "single", primaryFilePath: romsetPath },
+      targetDirectory: system.folderPath,
+      baseName: shortName,
+      transfer,
+      compressToZip: false,
+      sevenZipPath: config.sevenZipPath,
+      stagingDirectory: workspace.stagingDirectory,
+      assumeYes: options.flags.yes,
+    },
+    options.prompter,
+  );
+  if (placement.status === "skipped") return "skipped";
+  for (const placedPath of placement.placedPaths) logger.success(`Saved: ${placedPath}`);
   return "placed";
 }
 

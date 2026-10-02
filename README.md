@@ -9,9 +9,10 @@ downloads ROMs, extracts them, gives them clean names and puts each one in its s
 
 ```
 E:\ROM\
-  GBA\Mega Man Zero 4.gba
-  PS1\Crash Bandicoot.cue
-  PS1\Crash Bandicoot.bin
+  Game Boy Advance\Mega Man Zero 4.gba
+  PlayStation\Crash Bandicoot.cue
+  PlayStation\Crash Bandicoot.bin
+  MAME\pacman.zip
 ```
 
 ## What it does

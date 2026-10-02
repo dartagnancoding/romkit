@@ -6,7 +6,7 @@
  * The original file is left untouched unless --delete-source is given.
  */
 
-import { resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { resolveSystemFromFlagOrPrompt } from "../../config/systemResolver";
 import { createWorkspace } from "../../download/tempWorkspace";
 import { RomkitError, UsageError } from "../../errors";
@@ -40,7 +40,10 @@ export async function runImportCommand(context: CommandContext): Promise<void> {
       prompter,
       flags: args.flags,
       workspace,
-      hints: [],
+      // The parent folder often has the real title when the file name is cryptic
+      // ("The_Legend_Of_Zelda_..._Wii-Goomba\gmb-tloztpu.iso"). It is only a hint:
+      // a file name with release tags still wins, and low confidence still asks.
+      hints: [basename(dirname(inputPath))],
       removeSourceWhenDone: args.flags.deleteSource,
     });
     if (outcome === "placed" && !args.flags.deleteSource) {

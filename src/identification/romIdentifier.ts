@@ -175,7 +175,13 @@ function fuzzyMatchAgainstDat(hints: ParsedRomName[], datIndex: DatIndex): Ident
 
 function identifyFromFileName(hints: ParsedRomName[], datWasAvailable: boolean): IdentificationResult {
   // Prefer hints that look like release names ("Title (USA)") over short nicknames.
-  const rankedHints = [...hints].sort((first, second) => filenameConfidence(second, datWasAvailable) - filenameConfidence(first, datWasAvailable));
+  // On a tie, prefer the one with more words: "007 - Goldeneye" (the archive name)
+  // beats "GE00" (a cryptic file name inside it).
+  const wordCount = (hint: ParsedRomName) => hint.title.split(/\s+/).filter(Boolean).length;
+  const rankedHints = [...hints].sort(
+    (first, second) =>
+      filenameConfidence(second, datWasAvailable) - filenameConfidence(first, datWasAvailable) || wordCount(second) - wordCount(first),
+  );
   const bestHint = rankedHints[0] ?? { title: "Unknown", tags: [] };
   return {
     title: bestHint.title,

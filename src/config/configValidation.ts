@@ -168,6 +168,9 @@ function validateSystems(systems: unknown, sourcesByName: Map<string, JsonObject
     seenIds.set(lowerId, systemIndex);
 
     if (system.name !== undefined && !isNonEmptyString(system.name)) problems.push(`${location}.name must be a string.`);
+    if (system.mode !== undefined && system.mode !== "standard" && system.mode !== "arcade") {
+      problems.push(`${location}.mode must be "standard" or "arcade".`);
+    }
     if (!isNonEmptyString(system.folder)) problems.push(`${location}.folder is required.`);
 
     const lookupNames = [systemId];

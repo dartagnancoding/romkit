@@ -30,6 +30,10 @@ export async function runOrganizeCommand(context: CommandContext): Promise<void>
   const { args, config, prompter } = context;
   const system = await resolveSystemFromFlagOrPrompt(config, args.flags.system, prompter);
 
+  if (system.mode === "arcade") {
+    logger.info(`${system.id} is an arcade system: romsets keep their exact short names, so there is nothing to rename.`);
+    return;
+  }
   if (!(await isDirectory(system.folderPath))) {
     throw new RomkitError(`The folder for ${system.id} does not exist: ${system.folderPath}`);
   }

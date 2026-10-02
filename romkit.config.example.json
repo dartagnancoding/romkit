@@ -42,7 +42,7 @@
       "id": "GBA",
       "name": "Game Boy Advance",
       "aliases": ["gba", "game boy advance", "gameboy advance"],
-      "folder": "GBA",
+      "folder": "Game Boy Advance",
       "extensions": [".gba"],
       "datPath": "dats\\Nintendo - Game Boy Advance.dat",
       "naming": {
@@ -55,7 +55,7 @@
       "id": "PS1",
       "name": "PlayStation",
       "aliases": ["ps1", "psx", "playstation"],
-      "folder": "PS1",
+      "folder": "PlayStation",
       "extensions": [".cue", ".chd", ".pbp"],
       "datPath": null,
       "naming": {
@@ -66,9 +66,9 @@
     },
     {
       "id": "MD",
-      "name": "Mega Drive / Genesis",
+      "name": "Mega Drive",
       "aliases": ["md", "mega drive", "genesis"],
-      "folder": "MD",
+      "folder": "Mega Drive",
       "extensions": [".md", ".gen", ".bin"],
       "compressToZip": true,
       "sources": ["ExampleROMs"]

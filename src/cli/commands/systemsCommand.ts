@@ -12,6 +12,7 @@ import type { ResolvedConfig, SystemConfig } from "../../config/configTypes";
 import { requireSystem } from "../../config/systemResolver";
 import { UsageError } from "../../errors";
 import { logger } from "../../logging/logger";
+import { sanitizeFileName } from "../../naming/filenameSanitizer";
 import { compactKey } from "../../naming/titleNormalization";
 import { ensureDirectory } from "../../util/fileSystem";
 import { renderTable } from "../../util/format";
@@ -49,7 +50,7 @@ function listSystems(config: ResolvedConfig): void {
     const folderStatus = existsSync(system.folderPath) ? system.folderPath : `${system.folderPath} ${style.dim("(not created)")}`;
     return [
       style.cyan(system.id),
-      system.name,
+      system.mode === "arcade" ? `${system.name} ${style.dim("(arcade)")}` : system.name,
       folderStatus,
       system.extensions.join(" "),
       datStatus,
@@ -73,10 +74,16 @@ async function addSystem(context: CommandContext): Promise<void> {
 
   // Each answer defaults to the catalog value (or something sensible for a custom system).
   const systemId = await askSystemId(prompter, config, preset?.id ?? query.toUpperCase().replace(/[^A-Z0-9_-]/g, ""));
-  const systemName = await prompter.ask("Display name:", preset?.name ?? systemId);
-  const folder = await prompter.ask(`Folder inside ${config.libraryRoot}:`, systemId);
+  const systemName = await prompter.ask("Full name:", preset?.name ?? systemId);
+  // The folder uses the full name ("Mega Drive", "GameCube"): it is what you look
+  // for in the explorer, and it avoids clashes between similar abbreviations (DS/3DS, PS/PS2).
+  const folder = await prompter.ask(`Folder inside ${config.libraryRoot}:`, sanitizeFileName(systemName));
   const aliases = splitCommaList(await prompter.ask("Aliases (comma-separated):", (preset?.aliases ?? [systemId.toLowerCase()]).join(", ")));
   const extensions = await askExtensions(prompter, preset);
+  const mode = preset?.mode ?? "standard";
+  if (mode === "arcade") {
+    logger.info(style.dim("  Arcade mode: zips are stored as they are, never extracted or renamed."));
+  }
   if (extensions.includes(".cue")) {
     logger.info(style.dim("  Note: .bin/.wav tracks referenced by a .cue are handled automatically."));
   }
@@ -91,6 +98,7 @@ async function addSystem(context: CommandContext): Promise<void> {
 
   const newSystem: SystemConfig = {
     id: systemId,
+    ...(mode === "arcade" ? { mode } : {}),
     name: systemName,
     aliases,
     folder,

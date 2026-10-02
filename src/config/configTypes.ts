@@ -59,8 +59,17 @@ export interface NamingSettings {
   keepTags: string[];
 }
 
+/**
+ * "standard": archives are extracted, ROMs are identified and renamed.
+ * "arcade":   the archive IS the game (MAME/FBNeo romsets such as "sf2.zip"); it is
+ *             never extracted or renamed, because the emulator looks it up by that exact name.
+ */
+export type SystemMode = "standard" | "arcade";
+
 export interface SystemConfig {
   id: string;
+  /** Defaults to "standard". */
+  mode?: SystemMode;
   /** Friendly name. Defaults to the id. */
   name?: string;
   aliases?: string[];
@@ -95,6 +104,7 @@ export interface ConfigFile {
 
 export interface ResolvedSystem {
   id: string;
+  mode: SystemMode;
   name: string;
   aliases: string[];
   folderPath: string;

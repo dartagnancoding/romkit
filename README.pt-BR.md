@@ -9,9 +9,10 @@ Windows). Ela baixa ROMs, extrai, dá nomes limpos e guarda cada uma na pasta do
 
 ```
 E:\ROM\
-  GBA\Mega Man Zero 4.gba
-  PS1\Crash Bandicoot.cue
-  PS1\Crash Bandicoot.bin
+  Game Boy Advance\Mega Man Zero 4.gba
+  PlayStation\Crash Bandicoot.cue
+  PlayStation\Crash Bandicoot.bin
+  MAME\pacman.zip
 ```
 
 ## O que ele faz

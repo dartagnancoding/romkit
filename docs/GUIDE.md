@@ -6,10 +6,10 @@ folder per system:
 
 ```
 E:\ROM\
-  GBA\Mega Man Zero 4.gba
-  PS1\Crash Bandicoot.cue
-  PS1\Crash Bandicoot.bin
-  SNES\...
+  Game Boy Advance\Mega Man Zero 4.gba
+  PlayStation\Crash Bandicoot.cue
+  PlayStation\Crash Bandicoot.bin
+  MAME\pacman.zip
 ```
 
 What it does:
@@ -20,6 +20,8 @@ What it does:
 - **Naming**: tries, in order, a CRC32/SHA1 match in a No-Intro/Redump DAT, an editable alias table (`MMZ4` → `Mega Man Zero 4`), and a fuzzy title match. When it is not sure, it asks you.
 - **organize**: brings the names in an existing system folder up to the standard, and shows the plan before changing anything.
 - **cue/bin**: a `.cue` and its `.bin` tracks are renamed together, and the `.cue` is rewritten to point to the new names.
+- **Arcade (MAME)**: romset zips are stored exactly as they are, because the emulator needs their short names.
+- **Old dumps**: ROMs without an extension (for example `GE00` inside a GoldenEye zip) are recognized by their header (N64, NES, GBA).
 
 romkit never tries to solve captchas or get past anti-bot pages. When it finds one, it stops, shows the
 link, and suggests downloading manually and using `romkit import`.
@@ -178,6 +180,10 @@ The easy way is `romkit systems add <name>`. It looks the name up in the built-i
 systems, suggests the id, aliases, extensions and which No-Intro/Redump DAT to download, and asks
 you to confirm or edit each field. It then saves the config and creates the folder.
 
+Folders use the full console name (`E:\ROM\Mega Drive`, `E:\ROM\GameCube`), never abbreviations.
+That is what you look for in Explorer, and it avoids mixing up similar abbreviations (DS/3DS, PS/PS2).
+The short id (`MD`, `GC`) is only what you type after `-sys`.
+
 To do it by hand, add an entry to `systems`:
 
 ```jsonc
@@ -185,7 +191,7 @@ To do it by hand, add an entry to `systems`:
   "id": "GBA",                                   // used with -sys; letters, digits, - and _
   "name": "Game Boy Advance",
   "aliases": ["gba", "game boy advance"],        // other names accepted by -sys
-  "folder": "GBA",                               // under libraryRoot
+  "folder": "Game Boy Advance",                  // under libraryRoot
   "extensions": [".gba"],                        // files that are the game itself
   "datPath": "dats\\Nintendo - Game Boy Advance.dat",   // optional
   "naming": { "template": "{title}", "keepTags": [] },
@@ -202,6 +208,14 @@ Notes:
 - **DATs**: download them in XML format from No-Intro (DAT-o-MATIC) for cartridges, or from Redump for
   discs. A system without a DAT still works, but names then come from the file name or from aliases.
 - **compressToZip** applies to `download` and `import`. `organize` only renames, and ignores zips.
+- **Arcade mode** (`"mode": "arcade"`, used by the MAME catalog entry): each `.zip`/`.7z` is a romset
+  that MAME finds by its exact short name (`sf2.zip`). romkit moves it into the folder unchanged, with
+  no extraction, renaming or identification. It warns you when a name does not look like a short name
+  (`Street Fighter II.zip`). `organize` skips these systems.
+- **Files without an extension**: inside archives, files whose extension is not accepted are checked by
+  header. N64 (all three byte orders), NES (iNES) and GBA ROMs are recognized and get the right extension.
+- **`import` hints**: the name of the folder that holds the file is used as an extra hint. This helps
+  when the file name is cryptic (`gmb-tloztpu.iso` inside `The_Legend_Of_Zelda_Twilight_Princess...`).
 
 ### Naming
 

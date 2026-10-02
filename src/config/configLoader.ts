@@ -91,6 +91,7 @@ export function resolveConfig(rawFile: ConfigFile, configPath: string): Resolved
 function resolveSystem(system: SystemConfig, libraryRoot: string, configDirectory: string): ResolvedSystem {
   return {
     id: system.id,
+    mode: system.mode ?? "standard",
     name: system.name ?? system.id,
     aliases: system.aliases ?? [],
     folderPath: resolve(libraryRoot, system.folder),

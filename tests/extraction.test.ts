@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { detectArchiveFormatFromBytes } from "../src/extraction/archiveDetector";
 import { parseCueFileReferences, rewriteCueFileReferences } from "../src/extraction/cueSheet";
 import { buildRomUnits } from "../src/extraction/romUnits";
+import { detectRomExtensionFromBytes } from "../src/extraction/romSignatures";
 import { planTargetNames } from "../src/organization/libraryOrganizer";
 
 describe("detectArchiveFormatFromBytes", () => {
@@ -19,6 +20,24 @@ describe("detectArchiveFormatFromBytes", () => {
   test("anything else is not an archive", () => {
     expect(detectArchiveFormatFromBytes(new Uint8Array([0x2e, 0x00, 0x00, 0xea]))).toBeNull();
     expect(detectArchiveFormatFromBytes(new Uint8Array([]))).toBeNull();
+  });
+});
+
+describe("detectRomExtensionFromBytes", () => {
+  test("recognizes the three N64 byte orders", () => {
+    expect(detectRomExtensionFromBytes(new Uint8Array([0x80, 0x37, 0x12, 0x40]))?.extension).toBe(".z64");
+    expect(detectRomExtensionFromBytes(new Uint8Array([0x37, 0x80, 0x40, 0x12]))?.extension).toBe(".v64");
+    expect(detectRomExtensionFromBytes(new Uint8Array([0x40, 0x12, 0x37, 0x80]))?.extension).toBe(".n64");
+  });
+
+  test("recognizes iNES and the GBA logo at offset 4", () => {
+    expect(detectRomExtensionFromBytes(new Uint8Array([0x4e, 0x45, 0x53, 0x1a, 1, 1]))?.extension).toBe(".nes");
+    const gbaHeader = new Uint8Array([0x2e, 0, 0, 0xea, 0x24, 0xff, 0xae, 0x51, 0x69, 0x9a, 0xa2, 0x21]);
+    expect(detectRomExtensionFromBytes(gbaHeader)?.extension).toBe(".gba");
+  });
+
+  test("unknown content is not guessed", () => {
+    expect(detectRomExtensionFromBytes(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]))).toBeNull();
   });
 });
 

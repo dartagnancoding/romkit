@@ -2,6 +2,9 @@
  * Built-in list of well-known systems, used by `romkit systems add` to suggest
  * the id, aliases, accepted extensions and the matching No-Intro/Redump DAT.
  *
+ * Names are full console names (they become the folder names): "Mega Drive",
+ * "GameCube", not abbreviations.
+ *
  * Extensions list the files that are the game itself. Track files referenced by
  * a .cue (the .bin files) do not need to be listed: they are picked up through
  * the cue sheet.
@@ -9,6 +12,7 @@
  * Feel free to extend this list; every entry can still be edited during `systems add`.
  */
 
+import type { SystemMode } from "../config/configTypes";
 import { titleSimilarity } from "../identification/fuzzyMatcher";
 import { compactKey, normalizeTitleForComparison } from "../naming/titleNormalization";
 
@@ -19,7 +23,9 @@ export interface CatalogSystem {
   extensions: string[];
   /** DAT name to look for when downloading from the DAT provider. */
   datName: string;
-  datProvider: "No-Intro" | "Redump";
+  datProvider: "No-Intro" | "Redump" | "MAME";
+  /** "arcade": the archive itself is the game (see SystemMode). */
+  mode?: SystemMode;
 }
 
 export const SYSTEM_CATALOG: CatalogSystem[] = [
@@ -42,9 +48,9 @@ export const SYSTEM_CATALOG: CatalogSystem[] = [
   { id: "SG1000", name: "SG-1000", aliases: ["sg1000", "sg 1000"], extensions: [".sg"], datName: "Sega - SG-1000", datProvider: "No-Intro" },
   { id: "SMS", name: "Master System", aliases: ["sms", "master system", "mark iii"], extensions: [".sms"], datName: "Sega - Master System - Mark III", datProvider: "No-Intro" },
   { id: "GG", name: "Game Gear", aliases: ["gg", "game gear", "gamegear"], extensions: [".gg"], datName: "Sega - Game Gear", datProvider: "No-Intro" },
-  { id: "MD", name: "Mega Drive / Genesis", aliases: ["md", "mega drive", "megadrive", "genesis"], extensions: [".md", ".gen", ".bin", ".smd"], datName: "Sega - Mega Drive - Genesis", datProvider: "No-Intro" },
+  { id: "MD", name: "Mega Drive", aliases: ["md", "mega drive", "megadrive", "genesis"], extensions: [".md", ".gen", ".bin", ".smd"], datName: "Sega - Mega Drive - Genesis", datProvider: "No-Intro" },
   { id: "32X", name: "Sega 32X", aliases: ["32x", "sega 32x"], extensions: [".32x"], datName: "Sega - 32X", datProvider: "No-Intro" },
-  { id: "SEGACD", name: "Sega CD / Mega-CD", aliases: ["sega cd", "mega cd", "megacd"], extensions: [".cue", ".chd"], datName: "Sega - Mega CD & Sega CD", datProvider: "Redump" },
+  { id: "SEGACD", name: "Sega CD", aliases: ["sega cd", "mega cd", "megacd"], extensions: [".cue", ".chd"], datName: "Sega - Mega CD & Sega CD", datProvider: "Redump" },
   { id: "SATURN", name: "Sega Saturn", aliases: ["saturn", "sega saturn"], extensions: [".cue", ".chd"], datName: "Sega - Saturn", datProvider: "Redump" },
   { id: "DC", name: "Dreamcast", aliases: ["dc", "dreamcast"], extensions: [".chd", ".cdi"], datName: "Sega - Dreamcast", datProvider: "Redump" },
 
@@ -54,13 +60,16 @@ export const SYSTEM_CATALOG: CatalogSystem[] = [
   { id: "PSP", name: "PlayStation Portable", aliases: ["psp", "playstation portable"], extensions: [".iso", ".cso", ".chd"], datName: "Sony - PlayStation Portable", datProvider: "Redump" },
 
   // NEC / SNK / Bandai
-  { id: "PCE", name: "PC Engine / TurboGrafx-16", aliases: ["pce", "pc engine", "turbografx", "tg16"], extensions: [".pce"], datName: "NEC - PC Engine - TurboGrafx-16", datProvider: "No-Intro" },
+  { id: "PCE", name: "PC Engine", aliases: ["pce", "pc engine", "turbografx", "tg16"], extensions: [".pce"], datName: "NEC - PC Engine - TurboGrafx-16", datProvider: "No-Intro" },
   { id: "PCECD", name: "PC Engine CD", aliases: ["pce cd", "pc engine cd", "turbografx cd"], extensions: [".cue", ".chd"], datName: "NEC - PC Engine CD & TurboGrafx CD", datProvider: "Redump" },
   { id: "NGP", name: "Neo Geo Pocket", aliases: ["ngp", "neo geo pocket"], extensions: [".ngp"], datName: "SNK - NeoGeo Pocket", datProvider: "No-Intro" },
   { id: "NGPC", name: "Neo Geo Pocket Color", aliases: ["ngpc", "neo geo pocket color"], extensions: [".ngc"], datName: "SNK - NeoGeo Pocket Color", datProvider: "No-Intro" },
   { id: "NEOCD", name: "Neo Geo CD", aliases: ["neo geo cd", "neocd"], extensions: [".cue", ".chd"], datName: "SNK - Neo Geo CD", datProvider: "Redump" },
   { id: "WS", name: "WonderSwan", aliases: ["ws", "wonderswan"], extensions: [".ws"], datName: "Bandai - WonderSwan", datProvider: "No-Intro" },
   { id: "WSC", name: "WonderSwan Color", aliases: ["wsc", "wonderswan color"], extensions: [".wsc"], datName: "Bandai - WonderSwan Color", datProvider: "No-Intro" },
+
+  // Arcade: each .zip/.7z is a romset whose short name (sf2.zip) MAME needs unchanged.
+  { id: "MAME", name: "MAME", aliases: ["mame", "arcade", "fbneo", "final burn neo"], extensions: [".zip", ".7z"], datName: "MAME (match your MAME version)", datProvider: "MAME", mode: "arcade" },
 
   // Atari and others
   { id: "A2600", name: "Atari 2600", aliases: ["atari 2600", "2600", "vcs"], extensions: [".a26", ".bin"], datName: "Atari - 2600", datProvider: "No-Intro" },
