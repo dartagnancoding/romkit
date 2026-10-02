@@ -18,6 +18,7 @@ import { buildRomUnits } from "../../extraction/romUnits";
 import { identifyRomUnit, loadIdentificationContext } from "../../identification/romIdentifier";
 import { logger } from "../../logging/logger";
 import { formatRomBaseName } from "../../naming/nameFormatter";
+import { LibraryIndex } from "../../organization/libraryIndex";
 import { placeRomUnit } from "../../organization/libraryOrganizer";
 import { buildRenamePlan, renderRenamePlan } from "../../organization/renamePlanner";
 import { fileStem, isDirectory, listFilesShallow } from "../../util/fileSystem";
@@ -46,10 +47,13 @@ export async function runOrganizeCommand(context: CommandContext): Promise<void>
   }
 
   const identificationContext = await loadIdentificationContext(system, config);
+  // The index remembers each file's original release name, a better hint than the cleaned file name.
+  const libraryIndex = await LibraryIndex.load(system.folderPath);
   const identifiedItems = [];
   for (const [unitIndex, unit] of scan.units.entries()) {
     statusLine.update(`Identifying ${unitIndex + 1}/${scan.units.length}: ${basename(unit.primaryFilePath)}`);
-    const identification = await identifyRomUnit(unit, [], identificationContext);
+    const recordedRelease = libraryIndex.get(basename(unit.primaryFilePath))?.releaseName;
+    const identification = await identifyRomUnit(unit, recordedRelease ? [recordedRelease] : [], identificationContext);
     identifiedItems.push({ unit, identification, suggestedBaseName: formatRomBaseName(identification, system.naming, system.id) });
   }
   statusLine.clear();
@@ -108,11 +112,13 @@ export async function runOrganizeCommand(context: CommandContext): Promise<void>
     );
     if (placement.status === "placed") {
       renamedCount++;
+      libraryIndex.rename(basename(change.unit.primaryFilePath), basename(placement.placedPaths[0]!));
       logger.debug(`Renamed ${basename(change.unit.primaryFilePath)} → ${basename(placement.placedPaths[0]!)}`);
     } else {
       skippedCount++;
     }
   }
 
+  if (renamedCount > 0) await libraryIndex.save();
   logger.success(`Done: ${renamedCount} renamed, ${skippedCount} skipped.`);
 }

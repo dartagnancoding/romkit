@@ -57,6 +57,17 @@ export interface SourceConfig {
   options?: Record<string, unknown>;
 }
 
+/** Which version of a game the library keeps when several are imported (see naming/releasePreference.ts). */
+export interface ReleasePreferences {
+  /** Best first, e.g. ["USA", "World", "Europe", "Japan"]. Regions not listed rank last. */
+  regionOrder: string[];
+  /**
+   * Fan translations (PT-BR etc.): "avoid" keeps the original when both exist,
+   * "prefer" keeps the translation, "neutral" ignores the difference.
+   */
+  translations: "avoid" | "prefer" | "neutral";
+}
+
 export interface NamingSettings {
   /** Defaults to "{title}". See src/naming/nameFormatter.ts for tokens. */
   template: string;
@@ -85,6 +96,8 @@ export interface SystemConfig {
   /** No-Intro / Redump DAT file (XML). Relative paths are resolved from the config folder. */
   datPath?: string | null;
   naming?: Partial<NamingSettings>;
+  /** Overrides the top-level "preferences" for this system (e.g. prefer PT-BR on GBA only). */
+  preferences?: Partial<ReleasePreferences>;
   /** Store each ROM as a .zip in the library instead of the raw file. */
   compressToZip?: boolean;
   /** Names of the sources (from the top-level "sources" list) to search, in order. */
@@ -101,6 +114,8 @@ export interface ConfigFile {
   aliasesFile?: string | null;
   http?: Partial<HttpSettings>;
   matching?: { autoAcceptThreshold?: number };
+  /** Which version wins when the same game is imported twice. */
+  preferences?: Partial<ReleasePreferences>;
   sources?: SourceConfig[];
   systems: SystemConfig[];
 }
@@ -120,6 +135,7 @@ export interface ResolvedSystem {
   datPath: string | null;
   naming: NamingSettings;
   compressToZip: boolean;
+  preferences: ReleasePreferences;
   sourceNames: string[];
 }
 
@@ -149,4 +165,5 @@ export const DEFAULT_HTTP_SETTINGS: HttpSettings = {
 
 export const DEFAULT_NAMING: NamingSettings = { template: "{title}", keepTags: [] };
 export const DEFAULT_AUTO_ACCEPT_THRESHOLD = 0.9;
+export const DEFAULT_PREFERENCES: ReleasePreferences = { regionOrder: ["USA", "World", "Europe", "Japan"], translations: "avoid" };
 export const DEFAULT_ALIASES_FILE_NAME = "romkit.aliases.json";

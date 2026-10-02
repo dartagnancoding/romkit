@@ -18,6 +18,7 @@ import {
   DEFAULT_AUTO_ACCEPT_THRESHOLD,
   DEFAULT_HTTP_SETTINGS,
   DEFAULT_NAMING,
+  DEFAULT_PREFERENCES,
   type ConfigFile,
   type ResolvedConfig,
   type ResolvedSystem,
@@ -101,7 +102,7 @@ export function resolveConfig(rawFile: ConfigFile, configPath: string): Resolved
     http: { ...DEFAULT_HTTP_SETTINGS, ...rawFile.http },
     autoAcceptThreshold: rawFile.matching?.autoAcceptThreshold ?? DEFAULT_AUTO_ACCEPT_THRESHOLD,
     sources: rawFile.sources ?? [],
-    systems: rawFile.systems.map((system) => resolveSystem(system, rawFile.sources ?? [], libraryRoot, configDirectory)),
+    systems: rawFile.systems.map((system) => resolveSystem(system, rawFile, libraryRoot, configDirectory)),
     rawFile,
   };
 }
@@ -128,7 +129,7 @@ export function effectiveSourceNames(system: SystemConfig, sources: SourceConfig
   return sourceNames;
 }
 
-function resolveSystem(system: SystemConfig, sources: SourceConfig[], libraryRoot: string, configDirectory: string): ResolvedSystem {
+function resolveSystem(system: SystemConfig, rawFile: ConfigFile, libraryRoot: string, configDirectory: string): ResolvedSystem {
   return {
     id: system.id,
     mode: system.mode ?? "standard",
@@ -142,7 +143,9 @@ function resolveSystem(system: SystemConfig, sources: SourceConfig[], libraryRoo
       keepTags: system.naming?.keepTags ?? DEFAULT_NAMING.keepTags,
     },
     compressToZip: system.compressToZip ?? false,
-    sourceNames: effectiveSourceNames(system, sources),
+    sourceNames: effectiveSourceNames(system, rawFile.sources ?? []),
+    // System settings override the top-level ones, which override the defaults.
+    preferences: { ...DEFAULT_PREFERENCES, ...rawFile.preferences, ...system.preferences },
   };
 }
 

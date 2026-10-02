@@ -39,6 +39,7 @@ export function validateConfigFile(raw: unknown): string[] {
 
   validateHttpSettings(raw.http, problems);
   validateMatching(raw.matching, problems);
+  validatePreferences(raw.preferences, `"preferences"`, problems);
   const sourcesByName = validateSources(raw.sources, problems);
   validateSystems(raw.systems, sourcesByName, problems);
   validateSourceSystemLists(raw.sources, raw.systems, problems);
@@ -110,6 +111,21 @@ function validateMatching(matching: unknown, problems: string[]): void {
   const threshold = matching.autoAcceptThreshold;
   if (threshold !== undefined && !(typeof threshold === "number" && threshold >= 0 && threshold <= 1)) {
     problems.push(`"matching.autoAcceptThreshold" must be a number between 0 and 1.`);
+  }
+}
+
+function validatePreferences(preferences: unknown, location: string, problems: string[]): void {
+  if (preferences === undefined) return;
+  if (!isObject(preferences)) {
+    problems.push(`${location} must be an object.`);
+    return;
+  }
+  const { regionOrder, translations } = preferences;
+  if (regionOrder !== undefined && (!Array.isArray(regionOrder) || !regionOrder.every(isNonEmptyString))) {
+    problems.push(`${location}.regionOrder must be a list of region names, e.g. ["USA", "World", "Europe", "Japan"].`);
+  }
+  if (translations !== undefined && translations !== "avoid" && translations !== "prefer" && translations !== "neutral") {
+    problems.push(`${location}.translations must be "avoid", "prefer" or "neutral".`);
   }
 }
 
@@ -260,6 +276,7 @@ function validateSystems(systems: unknown, sourcesByName: Map<string, JsonObject
     if (system.datPath !== undefined && system.datPath !== null && !isNonEmptyString(system.datPath)) {
       problems.push(`${location}.datPath must be a path or null.`);
     }
+    validatePreferences(system.preferences, `${location}.preferences`, problems);
     if (system.compressToZip !== undefined && typeof system.compressToZip !== "boolean") {
       problems.push(`${location}.compressToZip must be true or false.`);
     }

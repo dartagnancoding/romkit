@@ -36,6 +36,8 @@ The `.bat` is in [`scripts/`](scripts/Organizar%20dump.bat). Copy it wherever yo
 
 - **Names**: finds the right name using No-Intro/Redump DATs, a nickname list (`MMZ4` → `Mega Man Zero 4`) or a fuzzy match. When it isn't sure, it asks you.
 - **Organize**: tidies up the folders you already have, and shows what will change before touching anything.
+- **One version per game**: when the same game arrives twice, it keeps the best version (by default USA > World > Europe > Japan, originals over fan translations, clean dumps over hacks). The other goes to a `_duplicates` folder for you to review.
+- **Verify**: `romkit verify` checks your files against No-Intro/Redump DATs and lists anything that is not a known good dump.
 - **MAME**: arcade romset zips are stored untouched, because the emulator needs their original names.
 - **Download**: searches sites you configure. It never tries to get past captchas or anti-bot pages: it stops and gives you the link instead.
 

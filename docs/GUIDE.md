@@ -92,6 +92,7 @@ romkit systems                # list what is configured
 | `romkit import <path> [-sys <system>] [--delete-source]` | Same flow for a file you downloaded yourself |
 | `romkit inbox [folder] [--dry-run] [--keep-source]` | Organize everything in the inbox folder, detecting each console |
 | `romkit organize -sys <system> [--dry-run]` | Standardize the names in a system folder |
+| `romkit verify -sys <system>` | Check a system folder against its DAT; list files that are not known good dumps |
 | `romkit systems` | List configured systems |
 | `romkit systems add [name]` | Add a system (with catalog suggestions) |
 | `romkit systems remove <id>` | Remove a system from the config (files are not touched) |
@@ -135,6 +136,47 @@ romkit organize -sys gba
 - **A captcha, a block (HTTP 403/429/503) or an unexpected page appears**: romkit stops and prints the link plus the `romkit import` command to run after you download manually.
 
 Exit codes: `0` success, `1` error, `2` invalid command line, `130` cancelled.
+
+---
+
+## One version per game (duplicates)
+
+When a game arrives whose final name already exists in the library, romkit compares the two
+**original releases** and keeps the better one. The other goes to `<system folder>\_duplicates\` under
+its full release name (for example `Mega Man Zero 4 (BR).gba`). Nothing is ever deleted: review that
+folder and delete what you don't want.
+
+The comparison works in this order:
+
+1. **Dump quality:** bad dumps, hacks, overdumps and pirate copies (`[b]`, `[h]`, `[o]`, `[p]`) lose
+   against clean dumps.
+2. **Fan translations** (`[T-Por]`, `(BR)`, `[Pt-br]`...) are handled per the `translations` setting.
+   `(Brazil)` is an official region and is not treated as a translation.
+3. **Region,** by `regionOrder`. GoodTools codes are understood: `(U)`, `(E)`, `(J)`.
+4. **Verified dumps:** `[!]` wins.
+5. **Revision:** a higher `(Rev N)` wins.
+6. **A tie** keeps the copy already in the library.
+
+A byte-identical copy is always set aside.
+
+```jsonc
+"preferences": {
+  "regionOrder": ["USA", "World", "Europe", "Japan"],   // best first (this is the default)
+  "translations": "avoid"                               // "avoid" (default) | "prefer" | "neutral"
+}
+```
+
+`preferences` can also be set inside a system to override the top-level one, for example to prefer
+PT-BR on GBA only.
+
+Final names drop the tags, so romkit records each file's original release in
+`<system folder>\.romkit-index.json`. Files that were added before this index existed have no record.
+A clash with one of them is asked about as before (with `--yes`, it is skipped), unless the two files are
+identical.
+
+`romkit verify -sys <system>` hashes every file against the system's DAT. It reports which files are
+known good dumps and which are unknown (a hack, a translation, a bad or modified dump, or a release the
+DAT does not cover), and it saves the results in the index.
 
 ---
 

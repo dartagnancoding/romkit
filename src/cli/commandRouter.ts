@@ -15,6 +15,7 @@ import { runInboxCommand } from "./commands/inboxCommand";
 import { runInitCommand } from "./commands/initCommand";
 import { runOrganizeCommand } from "./commands/organizeCommand";
 import { runSystemsCommand } from "./commands/systemsCommand";
+import { runVerifyCommand } from "./commands/verifyCommand";
 import { Prompter } from "./prompts";
 import { style } from "./terminalStyle";
 
@@ -64,6 +65,14 @@ const COMMANDS: CommandDefinition[] = [
     flags: ["system", "dryRun", "yes"],
     needsConfig: true,
     run: runOrganizeCommand,
+  },
+  {
+    name: "verify",
+    usage: "romkit verify -sys <system>",
+    summary: "Check a system folder against its DAT and list files that are not known good dumps",
+    flags: ["system"],
+    needsConfig: true,
+    run: runVerifyCommand,
   },
   {
     name: "systems",

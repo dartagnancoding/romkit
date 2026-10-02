@@ -12,14 +12,21 @@
  */
 
 import { unlink, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import type { Prompter } from "../cli/prompts";
-import { rewriteCueFileReferences, readCueSheet } from "../extraction/cueSheet";
+import type { ReleasePreferences } from "../config/configTypes";
+import { parseCueFileReferences, rewriteCueFileReferences, readCueSheet } from "../extraction/cueSheet";
 import type { RomUnit } from "../extraction/romUnits";
 import { createZipArchive } from "../extraction/sevenZip";
+import { hashFile } from "../identification/fileHasher";
 import { logger } from "../logging/logger";
+import { sanitizeFileName } from "../naming/filenameSanitizer";
+import { compareReleases } from "../naming/releasePreference";
+import { parseRomName, type RomTag } from "../naming/tagParser";
+import { LibraryIndex } from "./libraryIndex";
 import {
   ensureDirectory,
+  fileStem,
   isSamePath,
   lowercaseExtension,
   pathExists,
@@ -40,9 +47,24 @@ export interface PlacementRequest {
   stagingDirectory: string;
   /** --yes: never ask; existing files are skipped. */
   assumeYes: boolean;
+  /**
+   * The incoming unit's original release (name with tags, e.g. "Game (Europe) (Rev 1)").
+   * When given, it is recorded in the library index, and a name clash with a file
+   * whose release is known is resolved automatically: the preferred version stays,
+   * the other goes to "_duplicates". Without it, clashes are asked about.
+   */
+  release?: { name: string; tags: RomTag[] };
+  preferences?: ReleasePreferences;
 }
 
-export type PlacementResult = { status: "placed"; placedPaths: string[] } | { status: "skipped" };
+export type PlacementResult =
+  | { status: "placed"; placedPaths: string[] }
+  /** The incoming unit lost against (or was identical to) the library copy and went to _duplicates. */
+  | { status: "duplicate"; placedPaths: string[]; reason: string }
+  | { status: "skipped" };
+
+/** Folder (inside each system folder) where losing versions are kept for review. */
+export const DUPLICATES_FOLDER_NAME = "_duplicates";
 
 /** One file to place: where it comes from and its new name. */
 export interface PlannedFile {
@@ -75,8 +97,24 @@ export function planTargetNames(unit: RomUnit, baseName: string): PlannedFile[] 
 export async function placeRomUnit(request: PlacementRequest, prompter: Prompter): Promise<PlacementResult> {
   await ensureDirectory(request.targetDirectory);
   let baseName = request.baseName;
+  const libraryIndex = await LibraryIndex.load(request.targetDirectory);
 
-  const conflictingPaths = await findConflicts(request, baseName);
+  let conflictingPaths = await findConflicts(request, baseName);
+  if (conflictingPaths.length > 0 && request.release && request.preferences && !request.compressToZip) {
+    const decision = await decideBetweenVersions(request, conflictingPaths, libraryIndex);
+    if (decision?.winner === "existing") {
+      const duplicatePaths = await moveToDuplicates(request.unit, request.release.name, request.targetDirectory, request.transfer);
+      logger.warn(`Duplicate: ${decision.reason}. The incoming copy went to ${DUPLICATES_FOLDER_NAME}.`);
+      return { status: "duplicate", placedPaths: duplicatePaths, reason: decision.reason };
+    }
+    if (decision?.winner === "incoming") {
+      await moveToDuplicates(decision.existingUnit, decision.existingReleaseName, request.targetDirectory, "move");
+      libraryIndex.delete(basename(decision.existingUnit.primaryFilePath));
+      logger.warn(`Replaced: ${decision.reason}. The previous copy went to ${DUPLICATES_FOLDER_NAME}.`);
+      conflictingPaths = await findConflicts(request, baseName);
+    }
+  }
+
   if (conflictingPaths.length > 0) {
     const choice = request.assumeYes ? "skip" : await askConflictChoice(conflictingPaths, prompter);
     if (choice === "skip") {
@@ -98,7 +136,84 @@ export async function placeRomUnit(request: PlacementRequest, prompter: Prompter
   const placedPaths = request.compressToZip
     ? [await placeAsZip(request, baseName)]
     : await placeFiles(request.unit, planTargetNames(request.unit, baseName), request.targetDirectory, request.transfer);
+
+  if (request.release) {
+    // The first placed path is the primary file (the .cue for disc images).
+    libraryIndex.set(basename(placedPaths[0]!), { releaseName: request.release.name, addedAt: new Date().toISOString() });
+    await libraryIndex.save();
+  }
   return { status: "placed", placedPaths };
+}
+
+interface VersionDecision {
+  winner: "incoming" | "existing";
+  reason: string;
+  existingUnit: RomUnit;
+  existingReleaseName: string;
+}
+
+/**
+ * Compares the incoming unit with the library file it clashes with.
+ * Returns null when it cannot decide (the library file has no recorded release),
+ * in which case the user is asked as usual.
+ */
+async function decideBetweenVersions(request: PlacementRequest, conflictingPaths: string[], libraryIndex: LibraryIndex): Promise<VersionDecision | null> {
+  const incomingRelease = request.release!;
+  const primaryTargetName = planTargetNames(request.unit, request.baseName)[0]!.targetName;
+  const existingPrimaryPath = conflictingPaths.find((conflictPath) => basename(conflictPath).toLowerCase() === primaryTargetName.toLowerCase());
+  if (!existingPrimaryPath) return null;
+
+  const existingUnit = await unitFromLibraryFile(existingPrimaryPath);
+  const existingEntry = libraryIndex.get(basename(existingPrimaryPath));
+  const existingReleaseName = existingEntry?.releaseName ?? fileStem(existingPrimaryPath);
+
+  // Same content: nothing to choose, the copy already in the library stays.
+  const [incomingHashes, existingHashes] = await Promise.all([hashFile(hashableFile(request.unit)), hashFile(hashableFile(existingUnit))]);
+  if (incomingHashes.sha1 === existingHashes.sha1) {
+    return { winner: "existing", reason: `identical to ${basename(existingPrimaryPath)} already in the library`, existingUnit, existingReleaseName };
+  }
+
+  if (!existingEntry) return null;
+
+  const comparison = compareReleases(incomingRelease.tags, parseRomName(existingEntry.releaseName).tags, request.preferences!);
+  if (comparison > 0) {
+    return { winner: "incoming", reason: `"${incomingRelease.name}" is preferred over "${existingEntry.releaseName}"`, existingUnit, existingReleaseName };
+  }
+  const why = comparison < 0 ? "is preferred over" : "was there first and is as good as";
+  return { winner: "existing", reason: `"${existingEntry.releaseName}" ${why} "${incomingRelease.name}"`, existingUnit, existingReleaseName };
+}
+
+/** For a cue sheet the first track holds the data; the .cue text itself changes with renames. */
+function hashableFile(unit: RomUnit): string {
+  return unit.kind === "cue-sheet" ? (unit.cueReferences[0]?.filePath ?? unit.primaryFilePath) : unit.primaryFilePath;
+}
+
+/** Rebuilds the unit of a file already in the library (a .cue brings its tracks). */
+async function unitFromLibraryFile(primaryPath: string): Promise<RomUnit> {
+  if (lowercaseExtension(primaryPath) !== ".cue") return { kind: "single", primaryFilePath: primaryPath };
+  const references = parseCueFileReferences(await readCueSheet(primaryPath));
+  return {
+    kind: "cue-sheet",
+    primaryFilePath: primaryPath,
+    cueReferences: references.map((reference) => ({ reference, filePath: resolve(dirname(primaryPath), reference) })),
+  };
+}
+
+/**
+ * Moves a unit into <system folder>\_duplicates under its release name
+ * ("Mega Man Zero 4 (BR).gba"), so you can tell the versions apart when reviewing.
+ */
+async function moveToDuplicates(unit: RomUnit, releaseName: string, systemFolder: string, transfer: TransferMode): Promise<string[]> {
+  const duplicatesFolder = join(systemFolder, DUPLICATES_FOLDER_NAME);
+  await ensureDirectory(duplicatesFolder);
+  const baseName = sanitizeFileName(releaseName);
+  let candidateName = baseName;
+  for (let copyNumber = 2; ; copyNumber++) {
+    const targetPaths = planTargetNames(unit, candidateName).map((plannedFile) => join(duplicatesFolder, plannedFile.targetName));
+    if (!(await Promise.all(targetPaths.map(pathExists))).some(Boolean)) break;
+    candidateName = `${baseName} (${copyNumber})`;
+  }
+  return placeFiles(unit, planTargetNames(unit, candidateName), duplicatesFolder, transfer);
 }
 
 /** Paths that would be written for this base name (one zip, or every file of the unit). */

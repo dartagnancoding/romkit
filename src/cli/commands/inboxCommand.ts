@@ -28,7 +28,7 @@ import { style } from "../terminalStyle";
 
 interface ItemOutcome {
   item: InboxItem;
-  status: "placed" | "skipped" | "failed" | "unrecognized";
+  status: "placed" | "duplicate" | "skipped" | "failed" | "unrecognized";
   detail: string;
 }
 
@@ -109,11 +109,12 @@ async function processItem(item: InboxItem, system: ResolvedSystem, inboxRoot: s
       hints: folderHints(item.filePath, inboxRoot, config),
       removeSourceWhenDone: !args.flags.keepSource,
     });
-    if (outcome === "placed" && !args.flags.keepSource) {
+    const leftTheInbox = outcome === "placed" || outcome === "duplicate";
+    if (leftTheInbox && !args.flags.keepSource) {
       // The first volume of a split RAR was deleted by the pipeline; the other parts go too.
       for (const companionPath of item.companionPaths) await unlink(companionPath).catch(() => {});
     }
-    return { item, status: outcome, detail: outcome === "placed" ? system.name : "skipped" };
+    return { item, status: outcome, detail: leftTheInbox ? system.name : "skipped" };
   } catch (error) {
     if (error instanceof UserCancelledError) throw error;
     const message = error instanceof RomkitError ? error.message : `unexpected error: ${(error as Error).message}`;
@@ -166,6 +167,7 @@ function printSummary(outcomes: ItemOutcome[], looseFiles: string[], inboxRoot: 
   const count = (status: ItemOutcome["status"]) => outcomes.filter((outcome) => outcome.status === status).length;
   logger.info("");
   logger.success(`Organized: ${count("placed")}`);
+  if (count("duplicate") > 0) logger.info(`Duplicates set aside in _duplicates: ${count("duplicate")}`);
   if (count("skipped") > 0) logger.info(`Skipped: ${count("skipped")}`);
 
   const problems = outcomes.filter((outcome) => outcome.status === "failed" || outcome.status === "unrecognized");

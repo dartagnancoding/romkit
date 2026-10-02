@@ -25,6 +25,7 @@ import { logger } from "../logging/logger";
 import { placeRomUnit } from "../organization/libraryOrganizer";
 import { fileStem, listFilesRecursive, lowercaseExtension, transferFile, type TransferMode } from "../util/fileSystem";
 import { formatBytes } from "../util/format";
+import { renderTag, type RomTag } from "../naming/tagParser";
 
 export interface ProcessOptions {
   system: ResolvedSystem;
@@ -41,7 +42,8 @@ export interface ProcessOptions {
   removeSourceWhenDone: boolean;
 }
 
-export type ProcessOutcome = "placed" | "skipped";
+/** "duplicate": the file was a worse (or identical) version of one already in the library and went to _duplicates. */
+export type ProcessOutcome = "placed" | "duplicate" | "skipped";
 
 /** Archives inside archives are extracted this many levels deep at most. */
 const MAX_NESTED_ARCHIVE_DEPTH = 2;
@@ -130,18 +132,30 @@ export async function processAcquiredFile(inputPath: string, options: ProcessOpt
       sevenZipPath: config.sevenZipPath,
       stagingDirectory: workspace.stagingDirectory,
       assumeYes: options.flags.yes,
+      // The original release (with its tags) decides which version wins on a name clash.
+      release: { name: renderReleaseName(identification), tags: identification.tags },
+      preferences: system.preferences,
     },
     options.prompter,
   );
   if (placement.status === "skipped") return "skipped";
 
-  for (const placedPath of placement.placedPaths) logger.success(`Saved: ${placedPath}`);
+  if (placement.status === "duplicate") {
+    for (const placedPath of placement.placedPaths) logger.info(`Kept for review: ${placedPath}`);
+  } else {
+    for (const placedPath of placement.placedPaths) logger.success(`Saved: ${placedPath}`);
+  }
 
   // For raw input the files were already moved (transfer "move"); only the archive remains.
   if (archiveFormat && options.removeSourceWhenDone) {
     await unlink(inputPath).catch((error) => logger.warn(`Could not delete ${inputPath}: ${(error as Error).message}`));
   }
-  return "placed";
+  return placement.status;
+}
+
+/** "Mega Man Zero 4" + [(Europe), [T-Por]] → "Mega Man Zero 4 (Europe) [T-Por]" */
+function renderReleaseName(parts: { title: string; tags: RomTag[] }): string {
+  return [parts.title, ...parts.tags.map(renderTag)].join(" ");
 }
 
 /**
