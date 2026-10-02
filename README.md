@@ -4,8 +4,9 @@
 
 Something I built to help me organize, and grow, my retro game library.
 
-`romkit` is a small command-line tool (TypeScript + Bun, made for PowerShell on Windows). It
-downloads ROMs, extracts them, gives them clean names and puts each one in its system's folder:
+`romkit` is a small command-line tool (TypeScript + Bun, made for PowerShell on Windows). Drop the
+games you dumped into a folder, and it works out which console each one is for, extracts it, gives it
+a clean name and puts it in the right folder:
 
 ```
 E:\ROM\
@@ -15,15 +16,28 @@ E:\ROM\
   MAME\pacman.zip
 ```
 
-## What it does
+## The easy way: the inbox folder
 
-- **Download**: searches the sites you configure and lets you pick a result.
-- **Import**: handles files you downloaded yourself.
-- **Archives**: extracts zip, rar and 7z, keeps the game and throws away readmes and `.nfo` files.
+1. Put your files in `Downloads\dump`: zip, rar, 7z, ISO, cue/bin, split RARs...
+2. Double-click `Organizar dump.bat`.
+3. romkit shows where each file will go and asks before moving anything.
+
+It works out the console:
+
+- **from the subfolder name**, if there is one (`dump\snes\...`);
+- **from the extension** (`.gba`, `.sfc`...);
+- **from the file header, when the extension is not enough.** An `.iso` can be GameCube, Wii or PS2, and the header tells which. This works even inside a zip, without extracting everything.
+
+A PS1 `.bin` without a `.cue` gets a generated `.cue`.
+
+The `.bat` is in [`scripts/`](scripts/Organizar%20dump.bat). Copy it wherever you like.
+
+## What else it does
+
 - **Names**: finds the right name using No-Intro/Redump DATs, a nickname list (`MMZ4` → `Mega Man Zero 4`) or a fuzzy match. When it isn't sure, it asks you.
 - **Organize**: tidies up the folders you already have, and shows what will change before touching anything.
-
-It never tries to get past captchas or anti-bot pages. It stops and gives you the link instead.
+- **MAME**: arcade romset zips are stored untouched, because the emulator needs their original names.
+- **Download**: searches sites you configure. It never tries to get past captchas or anti-bot pages: it stops and gives you the link instead.
 
 ## Quick start
 
@@ -36,8 +50,8 @@ bun install
 bun link                      # makes the `romkit` command available
 
 romkit init                   # create the config
-romkit systems add gba        # add a system
-romkit download mega man zero 4 -sys gba
+romkit systems add gba        # add a system (repeat for each console)
+romkit inbox                  # organize everything in Downloads\dump
 romkit import "$HOME\Downloads\game.zip" -sys gba
 romkit organize -sys gba --dry-run
 ```

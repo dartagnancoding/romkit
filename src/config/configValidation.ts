@@ -30,7 +30,7 @@ export function validateConfigFile(raw: unknown): string[] {
   if (!isNonEmptyString(raw.libraryRoot)) problems.push(`"libraryRoot" must be a folder path.`);
   if (!isNonEmptyString(raw.sevenZipPath)) problems.push(`"sevenZipPath" must be the path to 7z.exe.`);
 
-  for (const optionalPathKey of ["tempDirectory", "logFile", "aliasesFile"]) {
+  for (const optionalPathKey of ["tempDirectory", "inboxDirectory", "logFile", "aliasesFile"]) {
     const value = raw[optionalPathKey];
     if (value !== undefined && value !== null && !isNonEmptyString(value)) {
       problems.push(`"${optionalPathKey}" must be a path or null.`);

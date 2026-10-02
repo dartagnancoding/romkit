@@ -5,7 +5,8 @@
 Algo que eu criei pra me ajudar a organizar e aumentar minha biblioteca de jogos retrô.
 
 O `romkit` é uma ferramenta de linha de comando (TypeScript + Bun, feita para o PowerShell no
-Windows). Ela baixa ROMs, extrai, dá nomes limpos e guarda cada uma na pasta do seu sistema:
+Windows). Você joga os jogos que dumpou numa pasta, e ele descobre de qual console é cada um, extrai,
+dá um nome limpo e guarda na pasta certa:
 
 ```
 E:\ROM\
@@ -15,15 +16,28 @@ E:\ROM\
   MAME\pacman.zip
 ```
 
-## O que ele faz
+## O jeito mais fácil: a pasta de entrada
 
-- **Download**: busca nos sites que você configurar e deixa você escolher o resultado.
-- **Import**: processa arquivos que você baixou por conta própria.
-- **Arquivos compactados**: extrai zip, rar e 7z, fica só com o jogo e descarta readmes e `.nfo`.
+1. Coloque os arquivos em `Downloads\dump`. Pode ser zip, rar, 7z, ISO, cue/bin, RAR dividido em partes...
+2. Dê dois cliques em `Organizar dump.bat`.
+3. O romkit mostra para onde vai cada arquivo e pergunta antes de mover.
+
+Ele descobre o console:
+
+- **pelo nome da subpasta**, se houver (`dump\snes\...`);
+- **pela extensão** (`.gba`, `.sfc`...);
+- **pelo cabeçalho do arquivo, quando a extensão não basta.** Um `.iso` pode ser GameCube, Wii ou PS2, e o cabeçalho diz qual. Isso funciona até dentro de zip, sem extrair tudo.
+
+Um `.bin` de PS1 sem `.cue` ganha um `.cue` gerado automaticamente.
+
+O `.bat` está em [`scripts/`](scripts/Organizar%20dump.bat). Copie para onde quiser.
+
+## O que mais ele faz
+
 - **Nomes**: acha o nome certo pelos DATs do No-Intro/Redump, por uma lista de apelidos (`MMZ4` → `Mega Man Zero 4`) ou por comparação aproximada. Quando não tem certeza, pergunta.
 - **Organizar**: arruma as pastas que você já tem, mostrando antes o que vai mudar.
-
-Ele nunca tenta passar por captchas ou proteções anti-bot. Para e te mostra o link.
+- **MAME**: os zips de arcade são guardados intactos, porque o emulador precisa do nome original.
+- **Download**: busca em sites que você configurar. Ele nunca tenta passar por captchas ou proteções anti-bot: para e te mostra o link.
 
 ## Começo rápido
 
@@ -36,13 +50,13 @@ bun install
 bun link                      # deixa o comando `romkit` disponível
 
 romkit init                   # cria a configuração
-romkit systems add gba        # adiciona um sistema
-romkit download mega man zero 4 -sys gba
+romkit systems add gba        # adiciona um sistema (repita para cada console)
+romkit inbox                  # organiza tudo que estiver em Downloads\dump
 romkit import "$HOME\Downloads\jogo.zip" -sys gba
 romkit organize -sys gba --dry-run
 ```
 
-O guia completo (configuração, nomeação, como escrever adaptadores de sites) está em
+O guia completo (configuração, nomeação, adaptadores de sites) está em
 [docs/GUIDE.md](docs/GUIDE.md) (em inglês).
 
 ## Planos

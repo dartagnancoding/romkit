@@ -39,7 +39,19 @@ export function locateConfigPath(explicitPath?: string): string {
   return defaultConfigPath();
 }
 
-export async function readConfigFile(configPath: string): Promise<ConfigFile> {
+/** Problems that only matter when searching sources (i.e. for `download`). */
+const SOURCE_PROBLEM_PATTERN = /^sources\[|^Source "|^systems\[\d+\]\.sources/;
+
+export interface ConfigLoadOptions {
+  /**
+   * false: problems in the download sources are only warnings, so commands that
+   * never download (import, inbox, organize...) keep working while a source is
+   * being fixed.
+   */
+  requireValidSources: boolean;
+}
+
+export async function readConfigFile(configPath: string, options: ConfigLoadOptions = { requireValidSources: true }): Promise<ConfigFile> {
   if (!(await pathExists(configPath))) {
     throw new RomkitError(
       `No config file found at ${configPath}.`,
@@ -51,15 +63,22 @@ export async function readConfigFile(configPath: string): Promise<ConfigFile> {
   const parsed = parseJsonWithComments(await readFile(configPath, "utf8"), configPath);
 
   const problems = validateConfigFile(parsed);
-  if (problems.length > 0) {
-    const problemList = problems.map((problem) => `  - ${problem}`).join("\n");
-    throw new RomkitError(`The config file ${configPath} has ${problems.length} problem(s):\n${problemList}`);
+  const sourceProblems = problems.filter((problem) => SOURCE_PROBLEM_PATTERN.test(problem));
+  const blockingProblems = options.requireValidSources ? problems : problems.filter((problem) => !SOURCE_PROBLEM_PATTERN.test(problem));
+
+  if (blockingProblems.length > 0) {
+    const problemList = blockingProblems.map((problem) => `  - ${problem}`).join("\n");
+    throw new RomkitError(`The config file ${configPath} has ${blockingProblems.length} problem(s):\n${problemList}`);
+  }
+  if (sourceProblems.length > 0) {
+    logger.warn(`The download sources in the config have ${sourceProblems.length} problem(s); \`romkit download\` will not work until they are fixed.`);
+    for (const problem of sourceProblems) logger.debug(`  - ${problem}`);
   }
   return parsed as ConfigFile;
 }
 
-export async function loadConfig(configPath: string): Promise<ResolvedConfig> {
-  const rawFile = await readConfigFile(configPath);
+export async function loadConfig(configPath: string, options?: ConfigLoadOptions): Promise<ResolvedConfig> {
+  const rawFile = await readConfigFile(configPath, options);
   return resolveConfig(rawFile, configPath);
 }
 
@@ -74,6 +93,9 @@ export function resolveConfig(rawFile: ConfigFile, configPath: string): Resolved
     libraryRoot,
     sevenZipPath: resolve(configDirectory, rawFile.sevenZipPath),
     tempDirectory: rawFile.tempDirectory ? resolve(configDirectory, rawFile.tempDirectory) : join(tmpdir(), "romkit"),
+    inboxDirectory: rawFile.inboxDirectory
+      ? resolve(configDirectory, rawFile.inboxDirectory)
+      : join(homedir(), "Downloads", "dump"),
     logFile: rawFile.logFile ? resolve(configDirectory, rawFile.logFile) : defaultLogFilePath(),
     aliasesFilePath: resolve(configDirectory, rawFile.aliasesFile ?? DEFAULT_ALIASES_FILE_NAME),
     http: { ...DEFAULT_HTTP_SETTINGS, ...rawFile.http },
@@ -86,7 +108,8 @@ export function resolveConfig(rawFile: ConfigFile, configPath: string): Resolved
 
 /** True when a source opts into this system through its own "systems" list. */
 export function sourceAppliesToSystem(source: SourceConfig, systemId: string): boolean {
-  return (source.systems ?? []).some((listedId) => listedId === "*" || listedId.toLowerCase() === systemId.toLowerCase());
+  // Array check: an invalid source can reach this point when its problems are only warnings.
+  return (Array.isArray(source.systems) ? source.systems : []).some((listedId) => listedId === "*" || listedId.toLowerCase() === systemId.toLowerCase());
 }
 
 /**

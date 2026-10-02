@@ -95,6 +95,8 @@ export interface ConfigFile {
   libraryRoot: string;
   sevenZipPath: string;
   tempDirectory?: string | null;
+  /** Folder watched by `romkit inbox`. Defaults to %USERPROFILE%\Downloads\dump. */
+  inboxDirectory?: string | null;
   logFile?: string | null;
   aliasesFile?: string | null;
   http?: Partial<HttpSettings>;
@@ -127,6 +129,7 @@ export interface ResolvedConfig {
   libraryRoot: string;
   sevenZipPath: string;
   tempDirectory: string;
+  inboxDirectory: string;
   logFile: string;
   aliasesFilePath: string;
   http: HttpSettings;

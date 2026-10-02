@@ -6,7 +6,7 @@
  */
 
 import { readdir, rename, unlink } from "node:fs/promises";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import type { ParsedFlags } from "../cli/argumentParser";
 import { confirmRomName } from "../cli/nameConfirmation";
 import type { Prompter } from "../cli/prompts";
@@ -18,6 +18,8 @@ import { detectArchiveFormat } from "../extraction/archiveDetector";
 import { buildRomUnits, unitFilePaths, type RomUnit } from "../extraction/romUnits";
 import { extractArchive } from "../extraction/sevenZip";
 import { detectRomExtension } from "../extraction/romSignatures";
+import { parseCueFileReferences, readCueSheet, writeCueForBin } from "../extraction/cueSheet";
+import { isRawCdImage, PLATFORM_HEADER_LENGTH, rawCdTrackMode } from "../extraction/platformDetector";
 import { identifyRomUnit, loadIdentificationContext } from "../identification/romIdentifier";
 import { logger } from "../logging/logger";
 import { placeRomUnit } from "../organization/libraryOrganizer";
@@ -52,6 +54,8 @@ export async function processAcquiredFile(inputPath: string, options: ProcessOpt
   const archiveFormat = await detectArchiveFormat(inputPath);
   let candidateFiles: string[];
   let transfer: TransferMode;
+  /** For raw input: the file whose unit we want (the input, or a cue generated for it). */
+  let primaryOfInterest = inputPath;
 
   if (archiveFormat) {
     const declaredExtension = lowercaseExtension(inputPath);
@@ -61,10 +65,18 @@ export async function processAcquiredFile(inputPath: string, options: ProcessOpt
     logger.info(`Extracting ${archiveFormat} archive...`);
     candidateFiles = await extractRecursively(inputPath, workspace.extractionDirectory, system, config.sevenZipPath);
     candidateFiles = await rescueFilesWithoutExtension(candidateFiles, system);
+    candidateFiles = await addCueSheetsForLoneCdImages(candidateFiles, system, null);
     // Extracted files live in the temp folder, so they can simply be moved.
     transfer = "move";
   } else {
     candidateFiles = await collectRawInputFiles(inputPath);
+    // A lone CD .bin gets a cue generated in the temp folder, so the input folder stays untouched.
+    const withGeneratedCue = await addCueSheetsForLoneCdImages([inputPath], system, workspace.extractionDirectory);
+    const generatedCue = withGeneratedCue.find((filePath) => filePath !== inputPath);
+    if (generatedCue) {
+      candidateFiles = [generatedCue, inputPath];
+      primaryOfInterest = generatedCue;
+    }
     transfer = options.removeSourceWhenDone ? "move" : "copy";
   }
 
@@ -73,7 +85,7 @@ export async function processAcquiredFile(inputPath: string, options: ProcessOpt
 
   // For a raw .cue import, sibling files were only added to resolve its tracks:
   // the unit of interest is the one whose primary file is the input itself.
-  const units = archiveFormat ? scan.units : scan.units.filter((unit) => unit.primaryFilePath === inputPath);
+  const units = archiveFormat ? scan.units : scan.units.filter((unit) => unit.primaryFilePath === primaryOfInterest);
   const discardedFiles = archiveFormat ? scan.discardedFilePaths : scan.discardedFilePaths.filter((filePath) => filePath === inputPath);
 
   if (discardedFiles.length > 0) {
@@ -154,6 +166,39 @@ async function rescueFilesWithoutExtension(filePaths: string[], system: Resolved
     await rename(filePath, renamedPath);
     logger.info(`Recognized ${basename(filePath)} as a ${detected.description} ROM by its header.`);
     resultPaths.push(renamedPath);
+  }
+  return resultPaths;
+}
+
+/** Matches "Track 2", "(Track 02)"... i.e. tracks after the first, which never stand alone. */
+const LATER_TRACK_PATTERN = /track\s*0*([2-9]|\d{2,})\b/i;
+
+/**
+ * A raw CD .bin without a .cue (e.g. a single-track PS1 game) cannot be used as
+ * is by systems that expect cue sheets. When the .bin really is a raw CD image
+ * and no cue in the list references it, a minimal cue sheet is generated for it.
+ * Returns the file list with the generated cue sheets added.
+ */
+async function addCueSheetsForLoneCdImages(filePaths: string[], system: ResolvedSystem, cueDirectory: string | null): Promise<string[]> {
+  const systemNeedsCue = system.extensions.includes(".cue") && !system.extensions.includes(".bin");
+  if (!systemNeedsCue) return filePaths;
+
+  const referencedLowerPaths = new Set<string>();
+  for (const cuePath of filePaths.filter((filePath) => lowercaseExtension(filePath) === ".cue")) {
+    for (const reference of parseCueFileReferences(await readCueSheet(cuePath))) {
+      referencedLowerPaths.add(resolve(dirname(cuePath), reference).toLowerCase());
+    }
+  }
+
+  const resultPaths = [...filePaths];
+  for (const binPath of filePaths) {
+    if (lowercaseExtension(binPath) !== ".bin" || referencedLowerPaths.has(resolve(binPath).toLowerCase())) continue;
+    if (LATER_TRACK_PATTERN.test(fileStem(binPath))) continue;
+    const header = new Uint8Array(await Bun.file(binPath).slice(0, PLATFORM_HEADER_LENGTH).arrayBuffer());
+    if (!isRawCdImage(header)) continue;
+    const cuePath = await writeCueForBin(binPath, cueDirectory ?? dirname(binPath), rawCdTrackMode(header));
+    logger.info(`${basename(binPath)} had no .cue; generated one (${rawCdTrackMode(header)}).`);
+    resultPaths.push(cuePath);
   }
   return resultPaths;
 }

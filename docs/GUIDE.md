@@ -90,6 +90,7 @@ romkit systems                # list what is configured
 |---|---|
 | `romkit download <title> [-sys <system>] [--source <name>]` | Search, download, extract, rename, organize |
 | `romkit import <path> [-sys <system>] [--delete-source]` | Same flow for a file you downloaded yourself |
+| `romkit inbox [folder] [--dry-run] [--keep-source]` | Organize everything in the inbox folder, detecting each console |
 | `romkit organize -sys <system> [--dry-run]` | Standardize the names in a system folder |
 | `romkit systems` | List configured systems |
 | `romkit systems add [name]` | Add a system (with catalog suggestions) |
@@ -105,6 +106,7 @@ Options:
 | `--yes`, `-y` | Accept every name suggestion, even low-confidence ones. When the name is already taken, the file is **skipped**. |
 | `--source <name>` | `download`: search only this source |
 | `--delete-source` | `import`: delete the original file after a successful import (otherwise it is left untouched) |
+| `--keep-source` | `inbox`: copy instead of moving, so the inbox keeps its files |
 | `--keep-temp` | Keep the temporary folder, to inspect what an archive contained |
 | `--config <path>` | Use a different config file |
 | `--verbose`, `-v` | Show HTTP requests, hashes, 7-Zip commands... |
@@ -136,6 +138,44 @@ Exit codes: `0` success, `1` error, `2` invalid command line, `130` cancelled.
 
 ---
 
+## The inbox
+
+`romkit inbox` processes every file in the inbox folder. That is `inboxDirectory` in the config, which
+defaults to `%USERPROFILE%\Downloads\dump`; you can also pass a folder as an argument. For a
+double-click workflow, copy [`scripts/Organizar dump.bat`](../scripts/Organizar%20dump.bat) anywhere.
+
+How it works:
+
+1. **It builds a list of items.**
+   - A `.cue` takes its tracks with it.
+   - A split RAR (`.part01.rar`, `.part02.rar`... or `.rar` + `.r00`, `.r01`...) counts once.
+   - Readmes, links and save files are ignored.
+   - The `.bat` itself and Windows files like `desktop.ini` are skipped.
+2. **It finds each item's console**, using the strongest evidence available:
+   - **a folder name** between the inbox and the file. Ids, names and aliases all work (`snes`,
+     `Super Nintendo`, `genesis`). A folder naming several consoles (`WII, Gamecube`) narrows the
+     choice, and the content decides between them;
+   - **inside archives**, the list of files (nothing is extracted yet). When the extension is
+     ambiguous, romkit streams just the first bytes of the largest file from the archive;
+   - **the extension**, narrowed by the **header**: GameCube and Wii disc magic words, `PLAYSTATION`
+     and `PSP GAME` in ISO 9660 volume descriptors, raw CD sync patterns (PS1, Sega CD, Saturn), `SEGA`
+     in Mega Drive cartridges, and the N64/NES/GBA ROM headers;
+   - **an archive with no console ROM inside**, which is treated as an arcade romset (if an arcade
+     system is configured).
+3. **It shows the plan and asks once.** `--dry-run` stops here, and `--yes` skips the question. When a
+   file could belong to several consoles, romkit asks which one (with `--yes`, the file is skipped).
+4. **Each item goes through the normal `import` flow**, then leaves the inbox (unless you pass
+   `--keep-source`). Folders left empty are removed. Files that fail stay in the inbox, and the summary
+   says why.
+
+A raw CD `.bin` without a `.cue` (common for single-track PS1 games) gets a generated cue sheet, with the
+track mode read from the disc.
+
+Problems in the download `sources` do not stop `inbox`, `import`, `organize` or `systems`. They only
+produce a warning. Only `download` needs valid sources.
+
+---
+
 ## Configuration
 
 The config file is looked up in this order:
@@ -152,6 +192,7 @@ So the command works from any folder. A complete example is in
   "libraryRoot": "E:\\ROM",                         // one subfolder per system
   "sevenZipPath": "C:\\Program Files\\7-Zip\\7z.exe",
   "tempDirectory": null,                            // null = %TEMP%\romkit
+  "inboxDirectory": null,                           // null = %USERPROFILE%\Downloads\dump
   "logFile": null,                                  // null = %LOCALAPPDATA%\romkit\romkit.log
   "aliasesFile": "romkit.aliases.json",             // relative to the config folder
   "http": { "userAgent": "...", "timeoutMs": 20000, "delayBetweenRequestsMs": 1500 },

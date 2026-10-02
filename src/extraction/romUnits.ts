@@ -9,7 +9,7 @@
  * are returned as discarded.
  */
 
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, extname, resolve } from "node:path";
 import { lowercaseExtension } from "../util/fileSystem";
 import { parseCueFileReferences, readCueSheet } from "./cueSheet";
 
@@ -56,7 +56,8 @@ export async function buildRomUnits(filePaths: string[], acceptedExtensions: str
       const cueReferences: CueReference[] = [];
       let missingReference: string | null = null;
       for (const reference of references) {
-        const lowerTrackPath = resolve(join(dirname(cuePath), reference)).toLowerCase();
+        // resolve() also accepts absolute references (used by generated cue sheets).
+        const lowerTrackPath = resolve(dirname(cuePath), reference).toLowerCase();
         const trackPath = filePathByLowerPath.get(lowerTrackPath);
         if (!trackPath) {
           missingReference = reference;

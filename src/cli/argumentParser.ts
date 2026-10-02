@@ -21,6 +21,7 @@ export type FlagKey =
   | "yes"
   | "keepTemp"
   | "deleteSource"
+  | "keepSource"
   | "help"
   | "version";
 
@@ -51,6 +52,12 @@ export const FLAG_DEFINITIONS: FlagDefinition[] = [
     takesValue: false,
     description: "import: delete the original file after a successful import",
   },
+  {
+    key: "keepSource",
+    spellings: ["--keep-source"],
+    takesValue: false,
+    description: "inbox: copy files instead of moving them out of the inbox",
+  },
   { key: "config", spellings: ["--config"], takesValue: true, valueName: "path", description: "Use this config file" },
   { key: "verbose", spellings: ["--verbose", "-v"], takesValue: false, description: "Print detailed progress" },
   { key: "help", spellings: ["--help", "-h"], takesValue: false, description: "Show help" },
@@ -66,6 +73,7 @@ export interface ParsedFlags {
   yes: boolean;
   keepTemp: boolean;
   deleteSource: boolean;
+  keepSource: boolean;
   help: boolean;
   version: boolean;
 }
@@ -92,6 +100,7 @@ export function parseArguments(argumentList: readonly string[]): ParsedArguments
     yes: false,
     keepTemp: false,
     deleteSource: false,
+    keepSource: false,
     help: false,
     version: false,
   };
@@ -157,6 +166,7 @@ function setBooleanFlag(flags: ParsedFlags, key: FlagKey): void {
     case "yes":
     case "keepTemp":
     case "deleteSource":
+    case "keepSource":
     case "help":
     case "version":
       flags[key] = true;
