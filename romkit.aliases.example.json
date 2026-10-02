@@ -1,0 +1,16 @@
+{
+  "*": {
+    "SMB3": "Super Mario Bros. 3"
+  },
+  "GBA": {
+    "MMZ": "Mega Man Zero",
+    "MMZ2": "Mega Man Zero 2",
+    "MMZ3": "Mega Man Zero 3",
+    "MMZ4": "Mega Man Zero 4",
+    "Minish Cap": "Legend of Zelda, The - The Minish Cap"
+  },
+  "PS1": {
+    "FF7": "Final Fantasy VII",
+    "SOTN": "Castlevania - Symphony of the Night"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "libraryRoot": "E:\\ROM",
+  "sevenZipPath": "C:\\Program Files\\7-Zip\\7z.exe",
+  "tempDirectory": null,
+  "logFile": null,
+  "aliasesFile": "romkit.aliases.json",
+  "http": {
+    "userAgent": "romkit/0.1 (personal ROM library manager)",
+    "timeoutMs": 20000,
+    "delayBetweenRequestsMs": 1500
+  },
+  "matching": {
+    "autoAcceptThreshold": 0.9
+  },
+  "sources": [
+    {
+      "name": "ExampleROMs",
+      "searchUrl": "https://roms.example.invalid/{system}/search?q={query}",
+      "requiresJavaScript": false,
+      "systemParams": {
+        "PS1": "playstation",
+        "MD": "mega-drive"
+      },
+      "selectors": {
+        "resultItem": ".search-results .result-row",
+        "title": "a.result-title",
+        "pageLink": "a.result-title",
+        "region": ".result-region",
+        "size": ".result-size",
+        "downloadLink": "a#download-button"
+      },
+      "noResultsText": "No games found"
+    },
+    {
+      "name": "ExampleScriptHeavySite",
+      "searchUrl": "https://spa.example.invalid/#/search/{query}",
+      "requiresJavaScript": true
+    }
+  ],
+  "systems": [
+    {
+      "id": "GBA",
+      "name": "Game Boy Advance",
+      "aliases": ["gba", "game boy advance", "gameboy advance"],
+      "folder": "GBA",
+      "extensions": [".gba"],
+      "datPath": "dats\\Nintendo - Game Boy Advance.dat",
+      "naming": {
+        "template": "{title}",
+        "keepTags": []
+      },
+      "sources": ["ExampleScriptHeavySite"]
+    },
+    {
+      "id": "PS1",
+      "name": "PlayStation",
+      "aliases": ["ps1", "psx", "playstation"],
+      "folder": "PS1",
+      "extensions": [".cue", ".chd", ".pbp"],
+      "datPath": null,
+      "naming": {
+        "template": "{title} {tags}",
+        "keepTags": ["Disc *", "Rev *"]
+      },
+      "sources": ["ExampleROMs"]
+    },
+    {
+      "id": "MD",
+      "name": "Mega Drive / Genesis",
+      "aliases": ["md", "mega drive", "genesis"],
+      "folder": "MD",
+      "extensions": [".md", ".gen", ".bin"],
+      "compressToZip": true,
+      "sources": ["ExampleROMs"]
+    }
+  ]
+}

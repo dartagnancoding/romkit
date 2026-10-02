@@ -1,0 +1,24 @@
+{
+  "name": "romkit",
+  "version": "0.1.0",
+  "description": "CLI to download, extract, rename and organize ROMs by system into a local library.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "romkit": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "build": "bun build src/index.ts --compile --outfile dist/romkit.exe"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "fast-xml-parser": "^5.11.2"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}
