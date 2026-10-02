@@ -109,8 +109,9 @@ function validateSources(sources: unknown, problems: string[]): Map<string, Json
     if (source.requiresJavaScript !== undefined && typeof source.requiresJavaScript !== "boolean") {
       problems.push(`${location}.requiresJavaScript must be true or false.`);
     }
-    if (source.noResultsText !== undefined && !isNonEmptyString(source.noResultsText)) {
-      problems.push(`${location}.noResultsText must be a string.`);
+    // Optional fields accept null as "not set".
+    if (source.noResultsText != null && !isNonEmptyString(source.noResultsText)) {
+      problems.push(`${location}.noResultsText must be a string or null.`);
     }
     if (source.systemParams !== undefined) {
       const params = source.systemParams;
@@ -127,12 +128,16 @@ function validateSources(sources: unknown, problems: string[]): Map<string, Json
       } else {
         for (const requiredSelector of ["resultItem", "title", "pageLink", "downloadLink"]) {
           if (!isNonEmptyString(selectors[requiredSelector])) {
-            problems.push(`${location}.selectors.${requiredSelector} is required.`);
+            const hint =
+              requiredSelector === "downloadLink"
+                ? ' If the site starts the download with JavaScript, set "requiresJavaScript": true instead (romkit will show the link for a manual download).'
+                : "";
+            problems.push(`${location}.selectors.${requiredSelector} is required.${hint}`);
           }
         }
         for (const optionalSelector of ["region", "size", "downloadLinkAttribute"]) {
           const value = selectors[optionalSelector];
-          if (value !== undefined && !isNonEmptyString(value)) problems.push(`${location}.selectors.${optionalSelector} must be a string.`);
+          if (value != null && !isNonEmptyString(value)) problems.push(`${location}.selectors.${optionalSelector} must be a string or null.`);
         }
       }
     }

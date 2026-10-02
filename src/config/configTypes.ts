@@ -23,13 +23,13 @@ export interface SourceSelectors {
   /** Inside a result row: the link to the game page (its href is used). */
   pageLink: string;
   /** Optional, inside a result row. */
-  region?: string;
+  region?: string | null;
   /** Optional, inside a result row. */
-  size?: string;
+  size?: string | null;
   /** On the game page: the element holding the actual download URL. */
   downloadLink: string;
   /** Attribute read from downloadLink. Defaults to "href". */
-  downloadLinkAttribute?: string;
+  downloadLinkAttribute?: string | null;
 }
 
 export interface SourceConfig {
@@ -45,7 +45,7 @@ export interface SourceConfig {
   requiresJavaScript?: boolean;
   selectors?: SourceSelectors;
   /** Text shown by the site when nothing matched; lets romkit tell "no results" from "broken page". */
-  noResultsText?: string;
+  noResultsText?: string | null;
   /** Per-system value for the {system} placeholder, keyed by system id, e.g. { "PS1": "psx" }. */
   systemParams?: Record<string, string>;
   /** Free-form settings for custom adapters. */

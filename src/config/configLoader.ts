@@ -11,7 +11,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { RomkitError } from "../errors";
-import { defaultLogFilePath } from "../logging/logger";
+import { defaultLogFilePath, logger } from "../logging/logger";
 import { ensureDirectory, pathExists } from "../util/fileSystem";
 import {
   DEFAULT_ALIASES_FILE_NAME,
@@ -24,6 +24,7 @@ import {
   type SystemConfig,
 } from "./configTypes";
 import { validateConfigFile } from "./configValidation";
+import { parseJsonWithComments, stripJsonComments } from "./jsonc";
 
 export function defaultConfigPath(): string {
   const appData = process.env.APPDATA ?? join(homedir(), "AppData", "Roaming");
@@ -45,14 +46,8 @@ export async function readConfigFile(configPath: string): Promise<ConfigFile> {
     );
   }
 
-  const text = await readFile(configPath, "utf8");
-  let parsed: unknown;
-  try {
-    // Strip a UTF-8 BOM: Windows editors (and PowerShell 5 Out-File) often add one.
-    parsed = JSON.parse(text.replace(/^﻿/, ""));
-  } catch (error) {
-    throw new RomkitError(`The config file ${configPath} is not valid JSON: ${(error as Error).message}`);
-  }
+  // Comments and trailing commas are allowed: the file is meant to be edited by hand.
+  const parsed = parseJsonWithComments(await readFile(configPath, "utf8"), configPath);
 
   const problems = validateConfigFile(parsed);
   if (problems.length > 0) {
@@ -113,5 +108,14 @@ export async function saveConfigFile(configPath: string, file: ConfigFile): Prom
     throw new RomkitError(`Refusing to save an invalid config:\n${problems.map((problem) => `  - ${problem}`).join("\n")}`);
   }
   await ensureDirectory(dirname(configPath));
+  // Saving rewrites the file from data, so hand-written comments cannot survive. Say so.
+  if (await pathExists(configPath)) {
+    const previousText = await readFile(configPath, "utf8");
+    if (stripJsonComments(previousText) !== previousText.replace(/^﻿/, "")) {
+      const backupPath = `${configPath}.bak`;
+      await writeFile(backupPath, previousText, "utf8");
+      logger.warn(`The comments in the config were removed when saving. The previous version is at ${backupPath}`);
+    }
+  }
   await writeFile(configPath, `${JSON.stringify(file, null, 2)}\n`, "utf8");
 }

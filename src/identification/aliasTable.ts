@@ -10,6 +10,7 @@
  */
 
 import { readFile } from "node:fs/promises";
+import { parseJsonWithComments } from "../config/jsonc";
 import { RomkitError } from "../errors";
 import { logger } from "../logging/logger";
 import { compactKey } from "../naming/titleNormalization";
@@ -33,12 +34,8 @@ export class AliasTable {
       return AliasTable.empty();
     }
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse((await readFile(filePath, "utf8")).replace(/^﻿/, ""));
-    } catch (error) {
-      throw new RomkitError(`The alias file ${filePath} is not valid JSON: ${(error as Error).message}`);
-    }
+    // Comments and trailing commas are allowed, like in the config file.
+    const parsed = parseJsonWithComments(await readFile(filePath, "utf8"), filePath);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
       throw new RomkitError(`The alias file ${filePath} must be an object like { "GBA": { "MMZ4": "Mega Man Zero 4" } }.`);
     }
