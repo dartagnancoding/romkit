@@ -18,6 +18,7 @@ import { buildRomUnits } from "../../extraction/romUnits";
 import { identifyRomUnit, loadIdentificationContext } from "../../identification/romIdentifier";
 import { logger } from "../../logging/logger";
 import { formatRomBaseName } from "../../naming/nameFormatter";
+import { parseRomName } from "../../naming/tagParser";
 import { LibraryIndex } from "../../organization/libraryIndex";
 import { placeRomUnit } from "../../organization/libraryOrganizer";
 import { buildRenamePlan, renderRenamePlan } from "../../organization/renamePlanner";
@@ -83,8 +84,13 @@ export async function runOrganizeCommand(context: CommandContext): Promise<void>
   }
 
   let renamedCount = 0;
+  let duplicateCount = 0;
   let skippedCount = 0;
   for (const change of plan.changes) {
+    const currentFileName = basename(change.unit.primaryFilePath);
+    // What this file really is: the recorded release, or its own name while it still has tags.
+    const releaseName = libraryIndex.get(currentFileName)?.releaseName ?? fileStem(change.unit.primaryFilePath);
+
     // High-confidence names pass straight through; low-confidence ones are asked here.
     const baseName = await confirmRomName(change.identification, system, prompter, {
       originalName: basename(change.unit.primaryFilePath),
@@ -107,18 +113,23 @@ export async function runOrganizeCommand(context: CommandContext): Promise<void>
         sevenZipPath: config.sevenZipPath,
         stagingDirectory: config.tempDirectory,
         assumeYes: args.flags.yes,
+        // Two files becoming the same name are two versions of one game: keep the better one.
+        // The organizer also moves this file's index record to its new name.
+        release: { name: releaseName, tags: parseRomName(releaseName).tags },
+        preferences: system.preferences,
       },
       prompter,
     );
     if (placement.status === "placed") {
       renamedCount++;
-      libraryIndex.rename(basename(change.unit.primaryFilePath), basename(placement.placedPaths[0]!));
-      logger.debug(`Renamed ${basename(change.unit.primaryFilePath)} → ${basename(placement.placedPaths[0]!)}`);
+      logger.debug(`Renamed ${currentFileName} → ${basename(placement.placedPaths[0]!)}`);
+    } else if (placement.status === "duplicate") {
+      duplicateCount++;
     } else {
       skippedCount++;
     }
   }
 
-  if (renamedCount > 0) await libraryIndex.save();
-  logger.success(`Done: ${renamedCount} renamed, ${skippedCount} skipped.`);
+  const duplicateText = duplicateCount > 0 ? `, ${duplicateCount} set aside in _duplicates` : "";
+  logger.success(`Done: ${renamedCount} renamed${duplicateText}, ${skippedCount} skipped.`);
 }

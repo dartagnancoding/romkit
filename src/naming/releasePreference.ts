@@ -88,6 +88,23 @@ function revisionValue(text: string): number {
   return firstLetter >= 97 && firstLetter <= 122 ? firstLetter - 96 : 0;
 }
 
+/** One short reason why `winnerTags` beats `loserTags`, following the same order as compareReleases. */
+export function explainPreference(winnerTags: RomTag[], loserTags: RomTag[], preferences: ReleasePreferences): string {
+  const winner = describeTraits(winnerTags, preferences);
+  const loser = describeTraits(loserTags, preferences);
+  if (winner.isProblemDump !== loser.isProblemDump) return "clean dump over bad dump/hack";
+  if (preferences.translations !== "neutral" && winner.isTranslation !== loser.isTranslation) {
+    return winner.isTranslation ? "translation preferred" : "original over translation";
+  }
+  if (winner.regionRank !== loser.regionRank) {
+    const regionName = (rank: number) => (Number.isFinite(rank) ? preferences.regionOrder[rank] : "unknown region");
+    return `${regionName(winner.regionRank)} over ${regionName(loser.regionRank)}`;
+  }
+  if (winner.isVerifiedDump !== loser.isVerifiedDump) return "verified dump [!]";
+  if (winner.revision !== loser.revision) return "newer revision";
+  return "same version; first one kept";
+}
+
 /**
  * > 0 when `candidate` is better than `existing`, < 0 when worse, 0 when the
  * tags give no reason to prefer either.

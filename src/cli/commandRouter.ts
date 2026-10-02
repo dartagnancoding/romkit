@@ -9,6 +9,7 @@ import { UsageError } from "../errors";
 import { logger } from "../logging/logger";
 import { FLAG_DEFINITIONS, getFlagDefinition, parseArguments, type FlagKey } from "./argumentParser";
 import type { BasicCommandContext, CommandContext } from "./commandContext";
+import { runAuditCommand } from "./commands/auditCommand";
 import { runDownloadCommand } from "./commands/downloadCommand";
 import { runImportCommand } from "./commands/importCommand";
 import { runInboxCommand } from "./commands/inboxCommand";
@@ -65,6 +66,14 @@ const COMMANDS: CommandDefinition[] = [
     flags: ["system", "dryRun", "yes"],
     needsConfig: true,
     run: runOrganizeCommand,
+  },
+  {
+    name: "audit",
+    usage: "romkit audit [folder] [-sys <system>]",
+    summary: "Read-only report: duplicates, non-standard names, unverified files, stray files",
+    flags: ["system"],
+    needsConfig: true,
+    run: runAuditCommand,
   },
   {
     name: "verify",

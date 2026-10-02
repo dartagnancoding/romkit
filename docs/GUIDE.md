@@ -93,6 +93,7 @@ romkit systems                # list what is configured
 | `romkit inbox [folder] [--dry-run] [--keep-source]` | Organize everything in the inbox folder, detecting each console |
 | `romkit organize -sys <system> [--dry-run]` | Standardize the names in a system folder |
 | `romkit verify -sys <system>` | Check a system folder against its DAT; list files that are not known good dumps |
+| `romkit audit [folder] [-sys <system>]` | Read-only report: duplicates, non-standard names, unverified and stray files |
 | `romkit systems` | List configured systems |
 | `romkit systems add [name]` | Add a system (with catalog suggestions) |
 | `romkit systems remove <id>` | Remove a system from the config (files are not touched) |
@@ -177,6 +178,31 @@ identical.
 `romkit verify -sys <system>` hashes every file against the system's DAT. It reports which files are
 known good dumps and which are unknown (a hack, a translation, a bad or modified dump, or a release the
 DAT does not cover), and it saves the results in the index.
+
+### Audit
+
+`romkit audit` is a read-only health check; it never changes anything. It reports:
+
+- **Duplicates**: files that are the same game (their standardized names collide; spelling variants
+  such as "DragonBall Z" / "Dragon Ball Z" are merged). For each one it shows which copy is kept and
+  why: identical copy, region, translation, dump quality or revision. Copies with the same size are
+  checksummed to detect identical files.
+- **Names to standardize**, marking those that will ask for confirmation.
+- **Files not in the DAT**, when the system has one.
+- **Other files** in the folder that are not games for that system.
+
+```powershell
+romkit audit                              # every system folder in the library
+romkit audit -sys ps2                     # one system
+romkit audit "E:\old stuff\PS2" -sys ps2  # any folder, judged by that system's rules
+```
+
+Long lists are cut at 25 entries; `--verbose` lists everything. To fix what the audit found:
+
+- **in the library:** `romkit organize -sys <system>` renames the files and moves the set-aside
+  copies to `_duplicates`, applying the same rules;
+- **in an outside folder:** `romkit inbox "<folder>" -sys <system> --keep-source` copies the best
+  versions into the library.
 
 ---
 

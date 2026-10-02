@@ -38,6 +38,7 @@ O `.bat` está em [`scripts/`](scripts/Organizar%20dump.bat). Copie para onde qu
 - **Organizar**: arruma as pastas que você já tem, mostrando antes o que vai mudar.
 - **Uma versão por jogo**: quando o mesmo jogo chega duas vezes, ele fica com a melhor versão (por padrão USA > World > Europe > Japan, original antes de tradução, dump limpo antes de hack). A outra vai para uma pasta `_duplicates` para você revisar.
 - **Verificar**: `romkit verify` confere seus arquivos contra os DATs do No-Intro/Redump e lista o que não for um dump bom conhecido.
+- **Auditar**: `romkit audit` gera um relatório, só de leitura, de qualquer pasta. Ele lista duplicatas (e qual cópia ficaria), nomes a corrigir, arquivos não verificados e arquivos avulsos.
 - **MAME**: os zips de arcade são guardados intactos, porque o emulador precisa do nome original.
 - **Download**: busca em sites que você configurar. Ele nunca tenta passar por captchas ou proteções anti-bot: para e te mostra o link.
 

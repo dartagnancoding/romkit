@@ -138,6 +138,10 @@ export async function placeRomUnit(request: PlacementRequest, prompter: Prompter
     : await placeFiles(request.unit, planTargetNames(request.unit, baseName), request.targetDirectory, request.transfer);
 
   if (request.release) {
+    // A rename inside the same folder (organize): drop the record under the old name.
+    if (isSamePath(dirname(request.unit.primaryFilePath), request.targetDirectory)) {
+      libraryIndex.delete(basename(request.unit.primaryFilePath));
+    }
     // The first placed path is the primary file (the .cue for disc images).
     libraryIndex.set(basename(placedPaths[0]!), { releaseName: request.release.name, addedAt: new Date().toISOString() });
     await libraryIndex.save();
@@ -170,17 +174,26 @@ async function decideBetweenVersions(request: PlacementRequest, conflictingPaths
   // Same content: nothing to choose, the copy already in the library stays.
   const [incomingHashes, existingHashes] = await Promise.all([hashFile(hashableFile(request.unit)), hashFile(hashableFile(existingUnit))]);
   if (incomingHashes.sha1 === existingHashes.sha1) {
+    // Same bytes, so the incoming release name also describes the library copy: remember it
+    // when the library copy had no record (e.g. "Game.iso" is now known to be "Game (USA)").
+    if (!existingEntry && incomingRelease.tags.length > 0) {
+      libraryIndex.set(basename(existingPrimaryPath), { releaseName: incomingRelease.name, addedAt: new Date().toISOString() });
+      await libraryIndex.save();
+    }
     return { winner: "existing", reason: `identical to ${basename(existingPrimaryPath)} already in the library`, existingUnit, existingReleaseName };
   }
 
-  if (!existingEntry) return null;
+  // The existing file's release comes from the index or, failing that, from its own
+  // name when it still carries tags ("Game (USA).iso"). With neither, the user decides.
+  const existingTags = parseRomName(existingReleaseName).tags;
+  if (!existingEntry && existingTags.length === 0) return null;
 
-  const comparison = compareReleases(incomingRelease.tags, parseRomName(existingEntry.releaseName).tags, request.preferences!);
+  const comparison = compareReleases(incomingRelease.tags, existingTags, request.preferences!);
   if (comparison > 0) {
-    return { winner: "incoming", reason: `"${incomingRelease.name}" is preferred over "${existingEntry.releaseName}"`, existingUnit, existingReleaseName };
+    return { winner: "incoming", reason: `"${incomingRelease.name}" is preferred over "${existingReleaseName}"`, existingUnit, existingReleaseName };
   }
   const why = comparison < 0 ? "is preferred over" : "was there first and is as good as";
-  return { winner: "existing", reason: `"${existingEntry.releaseName}" ${why} "${incomingRelease.name}"`, existingUnit, existingReleaseName };
+  return { winner: "existing", reason: `"${existingReleaseName}" ${why} "${incomingRelease.name}"`, existingUnit, existingReleaseName };
 }
 
 /** For a cue sheet the first track holds the data; the .cue text itself changes with renames. */
