@@ -146,6 +146,17 @@ function validateSources(sources: unknown, problems: string[]): Map<string, Json
       problems.push(`${location}.searchUrl is required.`);
     } else if (!source.searchUrl.includes("{query}")) {
       problems.push(`${location}.searchUrl must contain the {query} placeholder.`);
+    } else {
+      // Anything else in braces would be sent to the site literally (e.g. "%7Bconsole%7D").
+      const unknownPlaceholders = [...source.searchUrl.matchAll(/\{([^{}]*)\}/g)]
+        .map((match) => match[0])
+        .filter((placeholder) => placeholder !== "{query}" && placeholder !== "{system}");
+      if (unknownPlaceholders.length > 0) {
+        problems.push(
+          `${location}.searchUrl has unknown placeholder(s) ${[...new Set(unknownPlaceholders)].join(", ")}. ` +
+            `Only {query} and {system} exist; {system} is filled from "systemParams", e.g. { "PS1": "<the site's name for PS1>" }.`,
+        );
+      }
     }
     if (source.requiresJavaScript !== undefined && typeof source.requiresJavaScript !== "boolean") {
       problems.push(`${location}.requiresJavaScript must be true or false.`);

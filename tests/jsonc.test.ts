@@ -87,3 +87,15 @@ describe("source systems lists", () => {
     expect(problems.some((problem) => problem.includes("no systemParams entry for: PS1"))).toBe(true);
   });
 });
+
+describe("searchUrl placeholders", () => {
+  test("unknown placeholders such as {console} are rejected", () => {
+    const problems = validateConfigFile({
+      libraryRoot: "E:/ROM",
+      sevenZipPath: "C:/7z.exe",
+      sources: [{ name: "Site", searchUrl: "https://x.example/roms/{console}/?q={query}", requiresJavaScript: true }],
+      systems: [],
+    });
+    expect(problems.some((problem) => problem.includes("unknown placeholder(s) {console}"))).toBe(true);
+  });
+});
