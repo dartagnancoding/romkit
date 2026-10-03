@@ -4,11 +4,12 @@
 #
 # Downloads romkit.exe from the latest GitHub release into
 # %LOCALAPPDATA%\Programs\romkit and adds that folder to the user PATH.
-# Then run `romkit init`: it asks for your folders and offers to install 7-Zip
-# and aria2c with winget.
+# Also installs aria2c with winget when it is missing (faster downloads; per-user,
+# no admin). Then run `romkit init`: it asks for your folders and offers 7-Zip.
 #
-# For testing: ROMKIT_INSTALL_DIR, ROMKIT_DOWNLOAD_URL and ROMKIT_NO_PATH=1
-# change the folder, the download and skip the PATH change.
+# For testing: ROMKIT_INSTALL_DIR, ROMKIT_DOWNLOAD_URL, ROMKIT_NO_PATH=1 and
+# ROMKIT_NO_ARIA2=1 change the folder, the download, and skip the PATH change
+# and the aria2c install.
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is much slower with its progress bar
@@ -34,6 +35,23 @@ if ($env:ROMKIT_NO_PATH -ne '1') {
   }
   # This window too, so `romkit` works right away.
   if (($env:Path -split ';') -notcontains $installDir) { $env:Path = "$env:Path;$installDir" }
+}
+
+# aria2c: several connections per file. romkit finds it on PATH or in winget's folders.
+function Test-Aria2c {
+  if (Get-Command aria2c -ErrorAction SilentlyContinue) { return $true }
+  $winget = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet'
+  if (Test-Path (Join-Path $winget 'Links\aria2c.exe')) { return $true }
+  return [bool](Get-ChildItem -Path (Join-Path $winget 'Packages\aria2.aria2*\*\aria2c.exe') -ErrorAction SilentlyContinue)
+}
+if ($env:ROMKIT_NO_ARIA2 -ne '1' -and -not (Test-Aria2c)) {
+  if (Get-Command winget -ErrorAction SilentlyContinue) {
+    Write-Host 'Installing aria2c (faster downloads)...'
+    winget install --id aria2.aria2 -e --silent --accept-source-agreements --accept-package-agreements | Out-Null
+    if (Test-Aria2c) { Write-Host 'aria2c installed.' } else { Write-Host 'aria2c could not be installed; romkit will use its own downloader.' -ForegroundColor Yellow }
+  } else {
+    Write-Host 'Tip: install aria2c for faster downloads (https://aria2.github.io).' -ForegroundColor Yellow
+  }
 }
 
 $version = & $exePath --version

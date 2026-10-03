@@ -45,8 +45,9 @@ The `.bat` is in [`scripts/`](scripts/Organizar%20dump.bat). Copy it wherever yo
 
 ## Install
 
-Paste this in PowerShell (no admin needed). It installs `romkit.exe` from the latest release and puts
-it on your PATH. Run it again later to update.
+Paste this in PowerShell (no admin needed). It installs `romkit.exe` from the latest release, puts
+it on your PATH and installs [aria2c](https://aria2.github.io/) for faster downloads. Run it again
+later to update.
 
 ```powershell
 irm https://raw.githubusercontent.com/dartagnancoding/romkit/main/install.ps1 | iex
