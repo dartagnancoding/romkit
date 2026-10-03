@@ -43,7 +43,17 @@ The `.bat` is in [`scripts/`](scripts/Organizar%20dump.bat). Copy it wherever yo
 - **Download**: searches sites you configure, including plain file lists. Big files continue where they stopped after a dropped connection or Ctrl+C, and go faster with [aria2c](https://aria2.github.io/) installed. It never tries to get past captchas or anti-bot pages: it stops and gives you the link instead.
 - **Share your setup**: `romkit sources export` / `import` moves your sources (and the systems they need) to another PC.
 
-## Quick start
+## Install
+
+Paste this in PowerShell (no admin needed). It installs `romkit.exe` from the latest release and puts
+it on your PATH. Run it again later to update.
+
+```powershell
+irm https://raw.githubusercontent.com/dartagnancoding/romkit/main/install.ps1 | iex
+romkit init      # asks for your folders, installs 7-Zip/aria2c if you want, imports sources
+```
+
+## Quick start (from source)
 
 You need [Bun](https://bun.sh) and [7-Zip](https://www.7-zip.org).
 

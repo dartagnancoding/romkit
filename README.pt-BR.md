@@ -43,7 +43,17 @@ O `.bat` está em [`scripts/`](scripts/Organizar%20dump.bat). Copie para onde qu
 - **Download**: busca em sites que você configurar, inclusive listas simples de arquivos. Arquivos grandes continuam de onde pararam se a conexão cair ou você apertar Ctrl+C, e ficam mais rápidos com o [aria2c](https://aria2.github.io/) instalado. Ele nunca tenta passar por captchas ou proteções anti-bot: para e te mostra o link.
 - **Levar a configuração para outro PC**: `romkit sources export` / `import` leva suas fontes (e os sistemas que elas usam) para outro computador.
 
-## Começo rápido
+## Instalar
+
+Cole isto no PowerShell (não precisa de administrador). Ele instala o `romkit.exe` da versão mais
+recente e coloca no PATH. Para atualizar, é só rodar de novo.
+
+```powershell
+irm https://raw.githubusercontent.com/dartagnancoding/romkit/main/install.ps1 | iex
+romkit init      # pergunta as pastas, instala 7-Zip/aria2c se você quiser, importa fontes
+```
+
+## Começo rápido (pelo código-fonte)
 
 Precisa do [Bun](https://bun.sh) e do [7-Zip](https://www.7-zip.org).
 

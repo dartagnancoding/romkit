@@ -1,0 +1,42 @@
+# Publishes romkit.exe as a GitHub Release when a version tag is pushed:
+#   git tag v0.2.0
+#   git push origin v0.2.0
+# install.ps1 always downloads the exe of the latest release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.9"
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - run: bun run typecheck
+
+      - name: Check that the tag matches package.json
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ("v$version" -ne $env:GITHUB_REF_NAME) {
+            throw "Tag $env:GITHUB_REF_NAME does not match package.json version $version. Update package.json first."
+          }
+
+      - run: bun run build
+      - name: Smoke test
+        run: dist\romkit.exe --version
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME dist\romkit.exe install.ps1 --title "romkit $env:GITHUB_REF_NAME" --generate-notes
