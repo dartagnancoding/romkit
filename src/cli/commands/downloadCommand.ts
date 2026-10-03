@@ -8,6 +8,7 @@
 import { join } from "node:path";
 import type { ResolvedConfig, ResolvedSystem, SourceConfig } from "../../config/configTypes";
 import { resolveSystemFromFlagOrPrompt } from "../../config/systemResolver";
+import { resolveDownloader } from "../../download/aria2c";
 import { downloadFile } from "../../download/downloader";
 import { createWorkspace } from "../../download/tempWorkspace";
 import { RomkitError, UsageError } from "../../errors";
@@ -35,8 +36,9 @@ export async function runDownloadCommand(context: CommandContext): Promise<void>
   }
 
   const system = await resolveSystemFromFlagOrPrompt(config, args.flags.system, prompter);
-  // Fail before downloading anything if 7-Zip is missing.
+  // Fail before downloading anything if 7-Zip (or a required aria2c) is missing.
   await ensureSevenZipAvailable(config.sevenZipPath);
+  const downloader = resolveDownloader(config.download);
 
   const aliasTable = await AliasTable.load(config.aliasesFilePath);
   const aliasTitle = aliasTable.lookup(system.id, typedQuery);
@@ -109,8 +111,10 @@ export async function runDownloadCommand(context: CommandContext): Promise<void>
         pageUrl: chosenResult.pageUrl,
         destinationDirectory: workspace.downloadDirectory,
         fallbackFileName: resolution.suggestedFileName ?? `${sanitizeFileName(chosenResult.title)}.download`,
+        partialRoot: join(config.tempDirectory, "partial"),
       },
       httpClient,
+      downloader,
     );
     if (download.kind === "blocked") {
       reportBlocked(chosenResult.sourceName, download, system);

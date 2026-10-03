@@ -15,6 +15,21 @@ export interface HttpSettings {
   delayBetweenRequestsMs: number;
 }
 
+/**
+ * How files are downloaded. "auto" uses aria2c when it is installed (several
+ * connections per file, faster on big files) and the built-in downloader otherwise.
+ * Both continue an interrupted download where it stopped.
+ */
+export type DownloadTool = "auto" | "aria2c" | "builtin";
+
+export interface DownloadSettings {
+  tool: DownloadTool;
+  /** aria2c only: connections per file. */
+  connections: number;
+  /** aria2c.exe; null looks for it on PATH and in winget's install folder. */
+  aria2cPath: string | null;
+}
+
 export interface SourceSelectors {
   /** Matches each result row on the search page. */
   resultItem: string;
@@ -116,6 +131,7 @@ export interface ConfigFile {
   logFile?: string | null;
   aliasesFile?: string | null;
   http?: Partial<HttpSettings>;
+  download?: Partial<DownloadSettings>;
   matching?: { autoAcceptThreshold?: number };
   /** Which version wins when the same game is imported twice. */
   preferences?: Partial<ReleasePreferences>;
@@ -152,6 +168,7 @@ export interface ResolvedConfig {
   logFile: string;
   aliasesFilePath: string;
   http: HttpSettings;
+  download: DownloadSettings;
   /** Identification confidence (0..1) at or above which names are accepted without asking. */
   autoAcceptThreshold: number;
   sources: SourceConfig[];
@@ -165,6 +182,8 @@ export const DEFAULT_HTTP_SETTINGS: HttpSettings = {
   timeoutMs: 20_000,
   delayBetweenRequestsMs: 1_500,
 };
+
+export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = { tool: "auto", connections: 4, aria2cPath: null };
 
 export const DEFAULT_NAMING: NamingSettings = { template: "{title}", keepTags: [] };
 export const DEFAULT_AUTO_ACCEPT_THRESHOLD = 0.9;

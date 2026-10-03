@@ -16,6 +16,7 @@ import { ensureDirectory, pathExists } from "../util/fileSystem";
 import {
   DEFAULT_ALIASES_FILE_NAME,
   DEFAULT_AUTO_ACCEPT_THRESHOLD,
+  DEFAULT_DOWNLOAD_SETTINGS,
   DEFAULT_HTTP_SETTINGS,
   DEFAULT_NAMING,
   DEFAULT_PREFERENCES,
@@ -100,6 +101,11 @@ export function resolveConfig(rawFile: ConfigFile, configPath: string): Resolved
     logFile: rawFile.logFile ? resolve(configDirectory, rawFile.logFile) : defaultLogFilePath(),
     aliasesFilePath: resolve(configDirectory, rawFile.aliasesFile ?? DEFAULT_ALIASES_FILE_NAME),
     http: { ...DEFAULT_HTTP_SETTINGS, ...rawFile.http },
+    download: {
+      ...DEFAULT_DOWNLOAD_SETTINGS,
+      ...rawFile.download,
+      aria2cPath: rawFile.download?.aria2cPath ? resolve(configDirectory, rawFile.download.aria2cPath) : null,
+    },
     autoAcceptThreshold: rawFile.matching?.autoAcceptThreshold ?? DEFAULT_AUTO_ACCEPT_THRESHOLD,
     sources: rawFile.sources ?? [],
     systems: rawFile.systems.map((system) => resolveSystem(system, rawFile, libraryRoot, configDirectory)),

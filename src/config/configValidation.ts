@@ -38,6 +38,7 @@ export function validateConfigFile(raw: unknown): string[] {
   }
 
   validateHttpSettings(raw.http, problems);
+  validateDownloadSettings(raw.download, problems);
   validateMatching(raw.matching, problems);
   validatePreferences(raw.preferences, `"preferences"`, problems);
   const sourcesByName = validateSources(raw.sources, problems);
@@ -100,6 +101,22 @@ function validateHttpSettings(http: unknown, problems: string[]): void {
   if (http.delayBetweenRequestsMs !== undefined && !(typeof http.delayBetweenRequestsMs === "number" && http.delayBetweenRequestsMs >= 0)) {
     problems.push(`"http.delayBetweenRequestsMs" must be zero or a positive number of milliseconds.`);
   }
+}
+
+function validateDownloadSettings(download: unknown, problems: string[]): void {
+  if (download === undefined) return;
+  if (!isObject(download)) {
+    problems.push(`"download" must be an object.`);
+    return;
+  }
+  if (download.tool !== undefined && !["auto", "aria2c", "builtin"].includes(download.tool as string)) {
+    problems.push(`"download.tool" must be "auto", "aria2c" or "builtin".`);
+  }
+  const connections = download.connections;
+  if (connections !== undefined && !(Number.isInteger(connections) && (connections as number) >= 1 && (connections as number) <= 16)) {
+    problems.push(`"download.connections" must be a whole number from 1 to 16.`);
+  }
+  if (download.aria2cPath != null && !isNonEmptyString(download.aria2cPath)) problems.push(`"download.aria2cPath" must be a path or null.`);
 }
 
 function validateMatching(matching: unknown, problems: string[]): void {

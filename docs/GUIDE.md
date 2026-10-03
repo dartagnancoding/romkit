@@ -265,6 +265,7 @@ So the command works from any folder. A complete example is in
   "logFile": null,                                  // null = %LOCALAPPDATA%\romkit\romkit.log
   "aliasesFile": "romkit.aliases.json",             // relative to the config folder
   "http": { "userAgent": "...", "timeoutMs": 20000, "delayBetweenRequestsMs": 1500 },
+  "download": { "tool": "auto", "connections": 4, "aria2cPath": null },  // see "Downloads"
   "matching": { "autoAcceptThreshold": 0.9 },       // below this confidence, romkit asks
   "sources": [ /* see "Sources" */ ],
   "systems": [ /* see "Adding a system" */ ]
@@ -276,6 +277,22 @@ holds the config file. Folders in `systems[].folder` are relative to `libraryRoo
 
 Folders in `libraryRoot` that do not belong to a configured system (for example `BIOS` or `dump`) are
 never touched.
+
+### Downloads
+
+`romkit download` saves an unfinished file in `<tempDirectory>\partial\` and **continues it** the
+next time you download the same game: after a dropped connection, a closed terminal or Ctrl+C (that is
+also how to pause). A dropped connection is retried by itself a few times first.
+
+Big files go faster with [aria2c](https://aria2.github.io/), which opens several connections per
+file (`winget install aria2.aria2`). With `"tool": "auto"` (the default) romkit uses aria2c when it
+finds it and its own downloader otherwise.
+
+| `download` key | Default | Meaning |
+|---|---|---|
+| `tool` | `"auto"` | `"auto"`, `"aria2c"` (fail if missing) or `"builtin"` |
+| `connections` | `4` | aria2c connections per file (1 to 16) |
+| `aria2cPath` | `null` | path to `aria2c.exe`; `null` looks on PATH and in winget's folders |
 
 ### Log file
 

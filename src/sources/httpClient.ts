@@ -33,6 +33,10 @@ export class HttpClient {
     return this.settings.timeoutMs;
   }
 
+  get userAgent(): string {
+    return this.settings.userAgent;
+  }
+
   async fetchPage(url: string, referer?: string): Promise<FetchedPage> {
     await this.waitForTurn(url);
     logger.debug(`GET ${url}`);
@@ -61,14 +65,14 @@ export class HttpClient {
    * The timeout here only covers waiting for the headers; the downloader handles
    * stalls during the transfer itself (a big file can legitimately take minutes).
    */
-  async openDownload(url: string, referer?: string): Promise<OpenedDownload> {
+  async openDownload(url: string, referer?: string, extraHeaders: Record<string, string> = {}): Promise<OpenedDownload> {
     await this.waitForTurn(url);
     logger.debug(`GET (download) ${url}`);
     const abortController = new AbortController();
     const headerTimer = setTimeout(() => abortController.abort(new Error("timeout")), this.settings.timeoutMs);
     try {
       const response = await fetch(url, {
-        headers: this.buildHeaders(referer, "*/*"),
+        headers: { ...this.buildHeaders(referer, "*/*"), ...extraHeaders },
         redirect: "follow",
         signal: abortController.signal,
       });

@@ -17,7 +17,7 @@ function rewriteLine(text: string): void {
 }
 
 export class ProgressBar {
-  private transferredBytes = 0;
+  private transferredBytes: number;
   private lastRedrawTime = 0;
   private readonly startTime = Date.now();
 
@@ -25,10 +25,19 @@ export class ProgressBar {
     private readonly label: string,
     /** null when the server did not send Content-Length. */
     private readonly totalBytes: number | null,
-  ) {}
+    /** Bytes already on disk from an earlier attempt; they count for the bar, not for the speed. */
+    private readonly resumedBytes = 0,
+  ) {
+    this.transferredBytes = resumedBytes;
+  }
 
   advance(byteCount: number): void {
-    this.transferredBytes += byteCount;
+    this.update(this.transferredBytes + byteCount);
+  }
+
+  /** Sets the total transferred so far (for tools that report totals, such as aria2c). */
+  update(transferredBytes: number): void {
+    this.transferredBytes = transferredBytes;
     const now = Date.now();
     if (isInteractiveTerminal && now - this.lastRedrawTime >= REDRAW_INTERVAL_MS) {
       this.lastRedrawTime = now;
@@ -47,7 +56,7 @@ export class ProgressBar {
 
   private describe(): string {
     const elapsedSeconds = Math.max((Date.now() - this.startTime) / 1000, 0.001);
-    const bytesPerSecond = this.transferredBytes / elapsedSeconds;
+    const bytesPerSecond = Math.max(this.transferredBytes - this.resumedBytes, 0) / elapsedSeconds;
     const speedText = `${formatBytes(bytesPerSecond)}/s`;
 
     if (this.totalBytes && this.totalBytes > 0) {

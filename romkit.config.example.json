@@ -9,6 +9,11 @@
     "timeoutMs": 20000,
     "delayBetweenRequestsMs": 1500
   },
+  "download": {
+    "tool": "auto",
+    "connections": 4,
+    "aria2cPath": null
+  },
   "matching": {
     "autoAcceptThreshold": 0.9
   },
