@@ -37,9 +37,9 @@ const GLOBAL_FLAGS: FlagKey[] = ["verbose", "config", "help"];
 const COMMANDS: CommandDefinition[] = [
   {
     name: "download",
-    usage: "romkit download <title> [-sys <system>] [--source <name>]",
+    usage: "romkit download <title> [-sys <system>] [--source <name>] [--refresh]",
     summary: "Search the system's sources, download, extract, rename and organize",
-    flags: ["system", "source", "yes", "keepTemp"],
+    flags: ["system", "source", "yes", "keepTemp", "refresh"],
     needsConfig: true,
     run: runDownloadCommand,
   },

@@ -160,7 +160,8 @@ function validateSources(sources: unknown, problems: string[]): Map<string, Json
     }
     if (!isNonEmptyString(source.searchUrl)) {
       problems.push(`${location}.searchUrl is required.`);
-    } else if (!source.searchUrl.includes("{query}")) {
+    } else if (!source.searchUrl.includes("{query}") && adapterName !== "selector") {
+      // Only the selector adapter has a list mode (a page with every game, filtered locally).
       problems.push(`${location}.searchUrl must contain the {query} placeholder.`);
     } else {
       // Anything else in braces would be sent to the site literally (e.g. "%7Bconsole%7D").

@@ -43,6 +43,12 @@ describe("compareReleases", () => {
     expect(compare("Game (USA) [h2]", "Game (Europe)")).toBeLessThan(0);
   });
 
+  test("prototypes, betas and demos lose against final releases", () => {
+    expect(compare("Mega Man 3 (Prototype) (U) [!]", "Mega Man 3 (U) [!]")).toBeLessThan(0);
+    expect(compare("Game (USA) (Beta)", "Game (Japan)")).toBeLessThan(0);
+    expect(compare("Game (Europe) (Demo)", "Game (Europe) (Proto 2)")).toBe(0);
+  });
+
   test("verified [!] and higher revisions win when all else is equal", () => {
     expect(compare("Game (USA) [!]", "Game (USA)")).toBeGreaterThan(0);
     expect(compare("Game (USA) (Rev 2)", "Game (USA) (Rev 1)")).toBeGreaterThan(0);

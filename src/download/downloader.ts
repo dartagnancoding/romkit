@@ -130,11 +130,12 @@ export function fileNameFromContentDisposition(header: string | null): string | 
   return plainName ? plainName.trim() : null;
 }
 
-function fileNameFromUrl(url: string): string | null {
+export function fileNameFromUrl(url: string): string | null {
   try {
     const lastSegment = new URL(url).pathname.split("/").filter(Boolean).pop();
     if (!lastSegment || !lastSegment.includes(".")) return null;
-    return decodeURIComponent(lastSegment);
+    // "ROMS.zip/USA%2FGame.nes" is a path inside an archive: keep only "Game.nes".
+    return decodeURIComponent(lastSegment).split(/[\\/]/).pop() || null;
   } catch {
     return null;
   }

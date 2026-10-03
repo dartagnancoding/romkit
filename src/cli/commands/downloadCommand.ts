@@ -5,6 +5,7 @@
  * it to a temp folder and hands it to the shared extract/identify/organize pipeline.
  */
 
+import { join } from "node:path";
 import type { ResolvedConfig, ResolvedSystem, SourceConfig } from "../../config/configTypes";
 import { resolveSystemFromFlagOrPrompt } from "../../config/systemResolver";
 import { downloadFile } from "../../download/downloader";
@@ -15,6 +16,7 @@ import { AliasTable } from "../../identification/aliasTable";
 import { logger } from "../../logging/logger";
 import { sanitizeFileName } from "../../naming/filenameSanitizer";
 import { HttpClient } from "../../sources/httpClient";
+import { ListPageCache } from "../../sources/listPageCache";
 import { buildSearchUrl, type SearchResult, type SourceAdapter } from "../../sources/sourceAdapter";
 import { createSourceAdapter } from "../../sources/sourceRegistry";
 import { processAcquiredFile } from "../../workflow/processAcquiredFile";
@@ -43,6 +45,8 @@ export async function runDownloadCommand(context: CommandContext): Promise<void>
 
   const sources = selectSources(config, system, args.flags.source);
   const httpClient = new HttpClient(config.http);
+  // --refresh skips reading the cache but still saves the fresh copies.
+  const listCache = new ListPageCache(join(config.tempDirectory, "list-cache"), args.flags.refresh ? 0 : undefined);
 
   const allResults: SearchResult[] = [];
   const adapterBySourceName = new Map<string, SourceAdapter>();
@@ -53,7 +57,7 @@ export async function runDownloadCommand(context: CommandContext): Promise<void>
       browserOnlySources.push({ name: sourceConfig.name, url: buildSearchUrl(sourceConfig, system, query) });
       continue;
     }
-    const adapter = createSourceAdapter(sourceConfig, { httpClient, system });
+    const adapter = createSourceAdapter(sourceConfig, { httpClient, system, listCache });
     logger.info(`Searching ${sourceConfig.name} for "${query}"...`);
     const outcome = await adapter.search(query);
     if (outcome.kind === "blocked") {
@@ -163,8 +167,9 @@ async function chooseResult(results: SearchResult[], prompter: Prompter, assumeY
     // Show tags only when they are not already part of the visible title.
     const extraTags = result.regionTags.filter((tag) => !result.title.includes(tag));
     const tagText = extraTags.length > 0 ? style.yellow(`[${extraTags.join(", ")}]`) : "";
+    const folderText = result.folder ? style.dim(`${result.folder}/`) : "";
     const sizeText = result.sizeText ? style.dim(result.sizeText) : "";
-    return [result.title, tagText, sizeText, style.dim(`— ${result.sourceName}`)].filter(Boolean).join("  ");
+    return [folderText + result.title, tagText, sizeText, style.dim(`— ${result.sourceName}`)].filter(Boolean).join("  ");
   });
 
   if (results.length === 1) {

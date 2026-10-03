@@ -20,6 +20,7 @@ export type FlagKey =
   | "verbose"
   | "yes"
   | "keepTemp"
+  | "refresh"
   | "deleteSource"
   | "keepSource"
   | "help"
@@ -47,6 +48,12 @@ export const FLAG_DEFINITIONS: FlagDefinition[] = [
   { key: "source", spellings: ["--source"], takesValue: true, valueName: "name", description: "Search only this source" },
   { key: "keepTemp", spellings: ["--keep-temp"], takesValue: false, description: "Keep the temporary folder (for debugging)" },
   {
+    key: "refresh",
+    spellings: ["--refresh"],
+    takesValue: false,
+    description: "download: fetch list pages again instead of using the copies saved in the last 7 days",
+  },
+  {
     key: "deleteSource",
     spellings: ["--delete-source"],
     takesValue: false,
@@ -72,6 +79,7 @@ export interface ParsedFlags {
   verbose: boolean;
   yes: boolean;
   keepTemp: boolean;
+  refresh: boolean;
   deleteSource: boolean;
   keepSource: boolean;
   help: boolean;
@@ -99,6 +107,7 @@ export function parseArguments(argumentList: readonly string[]): ParsedArguments
     verbose: false,
     yes: false,
     keepTemp: false,
+    refresh: false,
     deleteSource: false,
     keepSource: false,
     help: false,
@@ -165,6 +174,7 @@ function setBooleanFlag(flags: ParsedFlags, key: FlagKey): void {
     case "verbose":
     case "yes":
     case "keepTemp":
+    case "refresh":
     case "deleteSource":
     case "keepSource":
     case "help":

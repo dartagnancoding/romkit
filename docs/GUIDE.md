@@ -151,12 +151,13 @@ The comparison works in this order:
 
 1. **Dump quality:** bad dumps, hacks, overdumps and pirate copies (`[b]`, `[h]`, `[o]`, `[p]`) lose
    against clean dumps.
-2. **Fan translations** (`[T-Por]`, `(BR)`, `[Pt-br]`...) are handled per the `translations` setting.
+2. **Final releases** win against `(Prototype)`, `(Beta)`, `(Demo)`, `(Sample)`.
+3. **Fan translations** (`[T-Por]`, `(BR)`, `[Pt-br]`...) are handled per the `translations` setting.
    `(Brazil)` is an official region and is not treated as a translation.
-3. **Region,** by `regionOrder`. GoodTools codes are understood: `(U)`, `(E)`, `(J)`.
-4. **Verified dumps:** `[!]` wins.
-5. **Revision:** a higher `(Rev N)` wins.
-6. **A tie** keeps the copy already in the library.
+4. **Region,** by `regionOrder`. GoodTools codes are understood: `(U)`, `(E)`, `(J)`.
+5. **Verified dumps:** `[!]` wins.
+6. **Revision:** a higher `(Rev N)` wins.
+7. **A tie** keeps the copy already in the library.
 
 A byte-identical copy is always set aside.
 
@@ -407,7 +408,7 @@ config order. A site without Nintendo games, for example, is simply left out of 
     "pageLink": "a.result-title",      // inside resultItem; its href is the game page
     "region": ".result-region",        // optional
     "size": ".result-size",            // optional
-    "downloadLink": "a#download",      // on the game page
+    "downloadLink": "a#download",      // on the game page (":self" = pageLink already is the file)
     "downloadLinkAttribute": "href"    // optional, default "href"
   },
   "noResultsText": "No games found"    // recommended, see below
@@ -424,6 +425,31 @@ How romkit scrapes:
 - **`requiresJavaScript: true`** marks a site that only shows content through JavaScript. romkit does
   not scrape these (there is no headless browser). It prints the search link so you can download in
   your browser and then use `import`.
+
+### A page that lists every game
+
+Some sources are not a search but one long list, such as a file index where each row links straight
+to the file. Leave `{query}` out of `searchUrl` and set `downloadLink` to `":self"`:
+
+```jsonc
+{
+  "name": "NESMegaPack",
+  "searchUrl": "https://ia802805.us.archive.org/view_archive.php?archive=/17/items/NESMegaPack201808/ROMS.zip",
+  "systems": ["NES"],
+  "selectors": {
+    "resultItem": "table.archext tr",
+    "title": "td a",                   // "USA/Mega Man 3 (U) [!].nes"
+    "pageLink": "td a",
+    "size": "td#size",                 // plain byte counts are shown as "384 KB"
+    "downloadLink": ":self"            // the row's link is the file
+  }
+}
+```
+
+romkit reads the whole list and offers only the entries whose name resembles what you typed (`megaman 3`
+finds `Mega Man 3`). The best match comes first, and among equal matches the preferred release comes
+first (see [One version per game](#one-version-per-game-duplicates)). The folder part of the entry (`USA/`,
+`Hacks/`) is shown in the list but never ends up in the file name.
 
 ### Writing a source adapter
 

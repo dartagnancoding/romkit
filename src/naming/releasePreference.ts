@@ -4,10 +4,11 @@
  *
  * Criteria, in order:
  *   1. bad dumps, hacks, overdumps, pirate copies lose against clean dumps;
- *   2. fan translations: avoided or preferred, depending on the setting;
- *   3. region, by the configured order (e.g. USA > World > Europe > Japan);
- *   4. "[!]" (verified good dump, GoodTools) wins;
- *   5. higher revision wins ("Rev 2" over "Rev 1" over none).
+ *   2. prototypes, betas and demos lose against final releases;
+ *   3. fan translations: avoided or preferred, depending on the setting;
+ *   4. region, by the configured order (e.g. USA > World > Europe > Japan);
+ *   5. "[!]" (verified good dump, GoodTools) wins;
+ *   6. higher revision wins ("Rev 2" over "Rev 1" over none).
  *
  * Tags are those of the ORIGINAL release name ("Game (Europe) (Rev 1)"),
  * which romkit keeps in the library index since the final file names drop them.
@@ -37,11 +38,14 @@ const REGION_CODE_NAMES: Record<string, string[]> = {
 const TRANSLATION_PATTERN = /^(t[-+]\w+|pt-?br|br|translated|traducao|tradução)\b/i;
 /** GoodTools flags for problematic dumps: [b] bad, [h] hack, [o] overdump, [p] pirate, [t] trainer, [f] fixed. */
 const PROBLEM_DUMP_PATTERN = /^[bhopt]\d*(\s|$|[+\]])|^(hack|bad dump)\b/i;
+/** Unfinished releases: "(Prototype)", "(Proto 2)", "(Beta)", "(Demo)", "(Sample)", "(Alpha)", "(Preview)". */
+const PRERELEASE_PATTERN = /^(proto(type)?|beta|demo|sample|alpha|preview|pre-?release)\b/i;
 const VERIFIED_DUMP_TAG = "!";
 const REVISION_PATTERN = /^rev\s*([0-9a-z.]+)$/i;
 
 export interface ReleaseTraits {
   isProblemDump: boolean;
+  isPrerelease: boolean;
   isTranslation: boolean;
   /** Position in the preferred region list; lower is better; Infinity when unknown. */
   regionRank: number;
@@ -56,6 +60,7 @@ export function describeTraits(tags: RomTag[], preferences: ReleasePreferences):
   let revision = 0;
   let isTranslation = false;
   let isProblemDump = false;
+  let isPrerelease = false;
   let isVerifiedDump = false;
 
   for (const tag of tags) {
@@ -63,6 +68,7 @@ export function describeTraits(tags: RomTag[], preferences: ReleasePreferences):
     if (text === VERIFIED_DUMP_TAG) isVerifiedDump = true;
     if (TRANSLATION_PATTERN.test(text)) isTranslation = true;
     if (tag.bracket === "square" && PROBLEM_DUMP_PATTERN.test(text)) isProblemDump = true;
+    if (tag.bracket === "round" && PRERELEASE_PATTERN.test(text)) isPrerelease = true;
 
     const revisionMatch = REVISION_PATTERN.exec(text);
     if (revisionMatch) revision = revisionValue(revisionMatch[1]!);
@@ -77,7 +83,7 @@ export function describeTraits(tags: RomTag[], preferences: ReleasePreferences):
       }
     }
   }
-  return { isProblemDump, isTranslation, regionRank, isVerifiedDump, revision };
+  return { isProblemDump, isPrerelease, isTranslation, regionRank, isVerifiedDump, revision };
 }
 
 /** "1" → 1, "A" → 1, "B" → 2, "1.1" → 1.1 */
@@ -93,6 +99,7 @@ export function explainPreference(winnerTags: RomTag[], loserTags: RomTag[], pre
   const winner = describeTraits(winnerTags, preferences);
   const loser = describeTraits(loserTags, preferences);
   if (winner.isProblemDump !== loser.isProblemDump) return "clean dump over bad dump/hack";
+  if (winner.isPrerelease !== loser.isPrerelease) return "final release over prototype/beta";
   if (preferences.translations !== "neutral" && winner.isTranslation !== loser.isTranslation) {
     return winner.isTranslation ? "translation preferred" : "original over translation";
   }
@@ -114,6 +121,7 @@ export function compareReleases(candidateTags: RomTag[], existingTags: RomTag[],
   const existing = describeTraits(existingTags, preferences);
 
   if (candidate.isProblemDump !== existing.isProblemDump) return candidate.isProblemDump ? -1 : 1;
+  if (candidate.isPrerelease !== existing.isPrerelease) return candidate.isPrerelease ? -1 : 1;
 
   if (preferences.translations !== "neutral" && candidate.isTranslation !== existing.isTranslation) {
     const translationWins = preferences.translations === "prefer";

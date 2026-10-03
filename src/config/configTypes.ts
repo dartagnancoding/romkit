@@ -26,7 +26,7 @@ export interface SourceSelectors {
   region?: string | null;
   /** Optional, inside a result row. */
   size?: string | null;
-  /** On the game page: the element holding the actual download URL. */
+  /** On the game page: the element holding the actual download URL. ":self" when pageLink already is the file. */
   downloadLink: string;
   /** Attribute read from downloadLink. Defaults to "href". */
   downloadLinkAttribute?: string | null;
@@ -36,7 +36,10 @@ export interface SourceConfig {
   name: string;
   /** Adapter implementation. Defaults to "selector" (generic CSS-selector scraper). */
   adapter?: string;
-  /** Search URL with {query} and optionally {system} placeholders. */
+  /**
+   * Search URL with {query} and optionally {system} placeholders. Without {query}
+   * (selector adapter only) the page lists every game and romkit filters it by name.
+   */
   searchUrl: string;
   /**
    * Site needs JavaScript to show results. Such sources are never scraped:

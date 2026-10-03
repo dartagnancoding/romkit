@@ -9,11 +9,14 @@
 
 import type { ResolvedSystem, SourceConfig } from "../config/configTypes";
 import type { HttpClient } from "./httpClient";
+import type { ListPageCache } from "./listPageCache";
 
 export interface SearchResult {
   sourceName: string;
   title: string;
-  /** Game page on the site; shown to the user when something goes wrong. */
+  /** Folder the entry sits in on a list page, e.g. "USA" or "Hacks". */
+  folder?: string;
+  /** Game page (or, with downloadLink ":self", the file itself) on the site; shown to the user when something goes wrong. */
   pageUrl: string;
   /** Region/version tags, e.g. ["USA", "Rev 1"]. */
   regionTags: string[];
@@ -47,6 +50,8 @@ export interface SourceAdapter {
 export interface SourceContext {
   httpClient: HttpClient;
   system: ResolvedSystem;
+  /** Reuses list pages fetched recently; absent means always fetch. */
+  listCache?: ListPageCache;
 }
 
 export type SourceAdapterFactory = (sourceConfig: SourceConfig, context: SourceContext) => SourceAdapter;
