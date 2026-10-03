@@ -1,6 +1,6 @@
 {
   "name": "romkit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "CLI to download, extract, rename and organize ROMs by system into a local library.",
   "type": "module",
   "private": true,
