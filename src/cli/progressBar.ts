@@ -16,6 +16,17 @@ function rewriteLine(text: string): void {
   process.stderr.write(`\r${text.slice(0, maxWidth)}\x1b[K`);
 }
 
+/** What a ProgressBar reports to a listener instead of drawing itself. */
+export interface ProgressSnapshot {
+  transferredBytes: number;
+  /** null when the size is unknown. */
+  totalBytes: number | null;
+  bytesPerSecond: number;
+  done: boolean;
+}
+
+export type ProgressListener = (snapshot: ProgressSnapshot) => void;
+
 export class ProgressBar {
   private transferredBytes: number;
   private lastRedrawTime = 0;
@@ -27,6 +38,8 @@ export class ProgressBar {
     private readonly totalBytes: number | null,
     /** Bytes already on disk from an earlier attempt; they count for the bar, not for the speed. */
     private readonly resumedBytes = 0,
+    /** When given, nothing is drawn: the listener receives every update (several downloads share one line). */
+    private readonly listener?: ProgressListener,
   ) {
     this.transferredBytes = resumedBytes;
   }
@@ -38,6 +51,10 @@ export class ProgressBar {
   /** Sets the total transferred so far (for tools that report totals, such as aria2c). */
   update(transferredBytes: number): void {
     this.transferredBytes = transferredBytes;
+    if (this.listener) {
+      this.listener(this.snapshot(false));
+      return;
+    }
     const now = Date.now();
     if (isInteractiveTerminal && now - this.lastRedrawTime >= REDRAW_INTERVAL_MS) {
       this.lastRedrawTime = now;
@@ -46,6 +63,10 @@ export class ProgressBar {
   }
 
   finish(): void {
+    if (this.listener) {
+      this.listener(this.snapshot(true));
+      return;
+    }
     if (isInteractiveTerminal) {
       rewriteLine(this.describe());
       process.stderr.write("\n");
@@ -54,9 +75,17 @@ export class ProgressBar {
     }
   }
 
-  private describe(): string {
+  private bytesPerSecond(): number {
     const elapsedSeconds = Math.max((Date.now() - this.startTime) / 1000, 0.001);
-    const bytesPerSecond = Math.max(this.transferredBytes - this.resumedBytes, 0) / elapsedSeconds;
+    return Math.max(this.transferredBytes - this.resumedBytes, 0) / elapsedSeconds;
+  }
+
+  private snapshot(done: boolean): ProgressSnapshot {
+    return { transferredBytes: this.transferredBytes, totalBytes: this.totalBytes, bytesPerSecond: this.bytesPerSecond(), done };
+  }
+
+  private describe(): string {
+    const bytesPerSecond = this.bytesPerSecond();
     const speedText = `${formatBytes(bytesPerSecond)}/s`;
 
     if (this.totalBytes && this.totalBytes > 0) {
@@ -70,12 +99,21 @@ export class ProgressBar {
   }
 }
 
+let statusLineVisible = false;
+
 /** A status line that keeps rewriting itself, e.g. "Identifying 3/120: game.gba". */
 export const statusLine = {
   update(text: string): void {
-    if (isInteractiveTerminal) rewriteLine(text);
+    if (!isInteractiveTerminal) return;
+    rewriteLine(text);
+    statusLineVisible = true;
   },
   clear(): void {
     if (isInteractiveTerminal) process.stderr.write("\r\x1b[K");
+    statusLineVisible = false;
+  },
+  /** Called by the logger before printing, so a message never lands on the status line; the next update redraws it. */
+  makeRoomForMessage(): void {
+    if (statusLineVisible) this.clear();
   },
 };

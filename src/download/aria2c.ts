@@ -11,7 +11,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { DownloadSettings } from "../config/configTypes";
 import { RomkitError } from "../errors";
-import { ProgressBar } from "../cli/progressBar";
+import { ProgressBar, type ProgressListener } from "../cli/progressBar";
 import { logger } from "../logging/logger";
 
 export type Downloader = { kind: "builtin" } | { kind: "aria2c"; executablePath: string; connections: number };
@@ -74,6 +74,7 @@ export interface Aria2cJob {
   expectedBytes: number | null;
   /** Bytes already on disk from an earlier attempt, for the progress bar. */
   resumedBytes: number;
+  onProgress?: ProgressListener;
 }
 
 /** Runs aria2c until the file is complete. aria2c keeps a ".aria2" control file, so a rerun continues. */
@@ -104,7 +105,7 @@ export async function runAria2c(downloader: Extract<Downloader, { kind: "aria2c"
   logger.debug(command.join(" "));
 
   const child = Bun.spawn(command, { stdout: "pipe", stderr: "pipe" });
-  const progressBar = new ProgressBar("  ", job.expectedBytes, job.resumedBytes);
+  const progressBar = new ProgressBar("  ", job.expectedBytes, job.resumedBytes, job.onProgress);
   const outputLines: string[] = [];
   try {
     const decoder = new TextDecoder();
@@ -119,6 +120,8 @@ export async function runAria2c(downloader: Extract<Downloader, { kind: "aria2c"
     }
     const exitCode = await child.exited;
     const errorText = (await new Response(child.stderr).text()).trim();
+    // 130/143: stopped by Ctrl+C or by closing the window, not a download problem.
+    if (exitCode === 130 || exitCode === 143 || child.signalCode) throw new RomkitError("Download interrupted.");
     if (exitCode !== 0) {
       const detail = [errorText, ...outputLines].filter(Boolean).slice(-3).join(" | ");
       throw new RomkitError(`aria2c stopped with code ${exitCode}${detail ? `: ${detail}` : ""}.`);

@@ -16,17 +16,18 @@
 
 import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { copyFile, mkdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { once } from "node:events";
 import { finished } from "node:stream/promises";
 import { join } from "node:path";
-import { ProgressBar } from "../cli/progressBar";
+import { ProgressBar, type ProgressListener } from "../cli/progressBar";
 import { RomkitError } from "../errors";
 import { logger } from "../logging/logger";
 import { sanitizeFileName } from "../naming/filenameSanitizer";
 import { blockedOutcome, findChallengeMarker } from "../sources/blockDetector";
 import type { HttpClient, OpenedDownload } from "../sources/httpClient";
 import type { BlockedOutcome } from "../sources/sourceAdapter";
+import { transferFile } from "../util/fileSystem";
 import { formatBytes } from "../util/format";
 import { BUILTIN_DOWNLOADER, type Downloader, runAria2c } from "./aria2c";
 
@@ -40,6 +41,8 @@ export interface DownloadRequest {
   fallbackFileName: string;
   /** Unfinished downloads wait here between attempts. */
   partialRoot: string;
+  /** Receives the progress instead of a progress bar being drawn (used when several downloads run at once). */
+  onProgress?: ProgressListener;
 }
 
 export type DownloadOutcome = { kind: "downloaded"; filePath: string; byteCount: number } | BlockedOutcome;
@@ -73,7 +76,7 @@ export async function downloadFile(
     expectedBytes,
     version: probe.response.headers.get("etag") ?? probe.response.headers.get("last-modified"),
   };
-  const partialDirectory = join(request.partialRoot, createHash("sha1").update(request.url).digest("hex").slice(0, 16));
+  const partialDirectory = partialDirectoryFor(request.partialRoot, request.url);
   const partialPath = join(partialDirectory, fileName);
   const resumedBytes = await preparePartial(partialDirectory, partialPath, identity);
 
@@ -93,6 +96,7 @@ export async function downloadFile(
         fileName,
         expectedBytes,
         resumedBytes,
+        onProgress: request.onProgress,
       });
     } else {
       await streamWithRetries(probe, request, httpClient, partialPath, expectedBytes, resumedBytes);
@@ -117,10 +121,26 @@ export async function downloadFile(
   }
 
   const filePath = join(request.destinationDirectory, fileName);
-  await moveFile(partialPath, filePath);
+  await transferFile(partialPath, filePath, "move");
   await rm(partialDirectory, { recursive: true, force: true });
   logger.debug(`Saved to ${filePath}`);
   return { kind: "downloaded", filePath, byteCount };
+}
+
+/** Where the unfinished copy of a URL waits between attempts. */
+export function partialDirectoryFor(partialRoot: string, url: string): string {
+  return join(partialRoot, createHash("sha1").update(url).digest("hex").slice(0, 16));
+}
+
+/** How much of an unfinished download is on disk; null when there is none. */
+export async function describePartial(partialRoot: string, url: string): Promise<{ savedBytes: number; expectedBytes: number | null } | null> {
+  const partialDirectory = partialDirectoryFor(partialRoot, url);
+  try {
+    const identity = JSON.parse(await readFile(join(partialDirectory, "romkit-partial.json"), "utf8")) as PartialIdentity;
+    return { savedBytes: await sizeOf(join(partialDirectory, identity.fileName)), expectedBytes: identity.expectedBytes };
+  } catch {
+    return null;
+  }
 }
 
 async function rejectNonFile(response: Response, pageUrl: string): Promise<BlockedOutcome | null> {
@@ -171,7 +191,7 @@ async function streamWithRetries(
   expectedBytes: number | null,
   resumedBytes: number,
 ): Promise<void> {
-  const progressBar = new ProgressBar("  ", expectedBytes, resumedBytes);
+  const progressBar = new ProgressBar("  ", expectedBytes, resumedBytes, request.onProgress);
   let pendingProbe: OpenedDownload | null = probe;
   try {
     for (let attempt = 1; ; attempt++) {
@@ -258,17 +278,6 @@ async function sizeOf(filePath: string): Promise<number> {
     return (await stat(filePath)).size;
   } catch {
     return 0;
-  }
-}
-
-/** rename, or copy + delete when the folders are on different drives. */
-async function moveFile(fromPath: string, toPath: string): Promise<void> {
-  try {
-    await rename(fromPath, toPath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
-    await copyFile(fromPath, toPath);
-    await unlink(fromPath);
   }
 }
 

@@ -41,6 +41,7 @@ O `.bat` está em [`scripts/`](scripts/Organizar%20dump.bat). Copie para onde qu
 - **Auditar**: `romkit audit` gera um relatório, só de leitura, de qualquer pasta. Ele lista duplicatas (e qual cópia ficaria), nomes a corrigir, arquivos não verificados e arquivos avulsos.
 - **MAME**: os zips de arcade são guardados intactos, porque o emulador precisa do nome original.
 - **Download**: busca em sites que você configurar, inclusive listas simples de arquivos. Arquivos grandes continuam de onde pararam se a conexão cair ou você apertar Ctrl+C, e ficam mais rápidos com o [aria2c](https://aria2.github.io/) instalado. Ele nunca tenta passar por captchas ou proteções anti-bot: para e te mostra o link.
+- **Fila de downloads**: `romkit queue add` coloca jogos na fila (você escolhe a versão na hora), `romkit queue run` baixa tudo, dois de cada vez. Downloads pela metade ficam na fila até terminar.
 - **Levar a configuração para outro PC**: `romkit sources export` / `import` leva suas fontes (e os sistemas que elas usam) para outro computador.
 
 ## Instalar

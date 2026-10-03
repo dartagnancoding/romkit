@@ -40,6 +40,7 @@ export const SETTINGS: SettingDefinition[] = [
   { key: "tempDirectory", label: "Temporary folder (downloads in progress, list cache)", kind: "folder", defaultText: "%TEMP%\\romkit" },
   { key: "download.tool", label: "Downloader", kind: "choice", choices: ["auto", "aria2c", "builtin"], defaultText: "auto" },
   { key: "download.connections", label: "aria2c connections per file", kind: "number", min: 1, max: 16, defaultText: "4" },
+  { key: "download.parallel", label: "Games downloaded at the same time by `romkit queue run`", kind: "number", min: 1, max: 4, defaultText: "2" },
   { key: "download.aria2cPath", label: "aria2c.exe", kind: "file", filter: "aria2c|aria2c.exe|All files|*.*", defaultText: "found automatically" },
   { key: "preferences.regionOrder", label: "Preferred regions, best first", kind: "list", defaultText: "USA, World, Europe, Japan" },
   { key: "preferences.translations", label: "Fan translations: avoid, prefer or neutral", kind: "choice", choices: ["avoid", "prefer", "neutral"], defaultText: "avoid" },

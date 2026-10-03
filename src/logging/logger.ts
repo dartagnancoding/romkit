@@ -9,6 +9,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { statusLine } from "../cli/progressBar";
 import { stripAnsi, style } from "../cli/terminalStyle";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
@@ -36,26 +37,33 @@ class Logger {
   }
 
   debug(message: string): void {
-    if (this.verboseEnabled) console.log(style.dim(message));
+    if (this.verboseEnabled) {
+      statusLine.makeRoomForMessage();
+      console.log(style.dim(message));
+    }
     this.writeToFile("debug", message);
   }
 
   info(message: string): void {
+    statusLine.makeRoomForMessage();
     console.log(message);
     this.writeToFile("info", message);
   }
 
   success(message: string): void {
+    statusLine.makeRoomForMessage();
     console.log(style.green(message));
     this.writeToFile("info", message);
   }
 
   warn(message: string): void {
+    statusLine.makeRoomForMessage();
     console.error(style.yellow(message));
     this.writeToFile("warn", message);
   }
 
   error(message: string): void {
+    statusLine.makeRoomForMessage();
     console.error(style.red(message));
     this.writeToFile("error", message);
   }

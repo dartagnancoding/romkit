@@ -12,6 +12,7 @@
   "download": {
     "tool": "auto",
     "connections": 4,
+    "parallel": 2,
     "aria2cPath": null
   },
   "matching": {

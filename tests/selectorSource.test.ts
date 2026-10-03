@@ -6,7 +6,7 @@ import type { ResolvedSystem, SourceConfig } from "../src/config/configTypes";
 import { fileNameFromUrl } from "../src/download/downloader";
 import type { HttpClient } from "../src/sources/httpClient";
 import { ListPageCache } from "../src/sources/listPageCache";
-import { SelectorSource, splitListEntry } from "../src/sources/selectorSource";
+import { SelectorSource, sortByRelevance, splitListEntry } from "../src/sources/selectorSource";
 
 const LIST_URL = "https://example.invalid/view_archive.php?archive=ROMS.zip";
 
@@ -86,6 +86,15 @@ describe("selector source, list mode", () => {
   test("splitListEntry separates the folder and drops the extension", () => {
     expect(splitListEntry("USA/Mega Man 3 (U) [!].nes")).toEqual({ title: "Mega Man 3 (U) [!]", folder: "USA" });
     expect(splitListEntry("Tetris (World).gb")).toEqual({ title: "Tetris (World)", folder: undefined });
+  });
+});
+
+describe("results from several sources", () => {
+  test("are ranked together: an exact match from a later source comes first", () => {
+    const fromSourceC = { sourceName: "PS1 C", title: "Crash Bash & Spyro - Year of the Dragon (USA) (Demo)", pageUrl: "https://example.invalid/c", regionTags: [] };
+    const fromSourceS = { sourceName: "PS1 S", title: "Spyro the Dragon (USA)", pageUrl: "https://example.invalid/s", regionTags: [] };
+    const ranked = sortByRelevance([fromSourceC, fromSourceS], "spyro the dragon", NES.preferences);
+    expect(ranked.map((result) => result.sourceName)).toEqual(["PS1 S", "PS1 C"]);
   });
 });
 

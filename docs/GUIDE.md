@@ -102,6 +102,10 @@ needed: `romkit download <game> -sys <system>` works right away.
 | `romkit systems` | List configured systems |
 | `romkit systems add [name]` | Add a system (with catalog suggestions) |
 | `romkit systems remove <id>` | Remove a system from the config (files are not touched) |
+| `romkit queue add <title> [-sys <system>]` | Search now and pick the version; download later |
+| `romkit queue` | List the queue, including unfinished downloads and how much of each is saved |
+| `romkit queue run` | Download everything in the queue, several at a time, without stopping to ask |
+| `romkit queue remove <n...\|all>` | Drop items from the queue (and their unfinished files) |
 | `romkit sources` | List the download sources |
 | `romkit sources export <file> [-sys <system>]` | Save sources and the systems they need, to share or move to another PC |
 | `romkit sources import <file or link>` | Add sources from such a file (names already in the config are kept) |
@@ -304,7 +308,31 @@ finds it and its own downloader otherwise.
 |---|---|---|
 | `tool` | `"auto"` | `"auto"`, `"aria2c"` (fail if missing) or `"builtin"` |
 | `connections` | `4` | aria2c connections per file (1 to 16) |
+| `parallel` | `2` | games `romkit queue run` downloads at the same time (1 to 4) |
 | `aria2cPath` | `null` | path to `aria2c.exe`; `null` looks on PATH and in winget's folders |
+
+### The download queue
+
+```powershell
+romkit queue add crash bandicoot 2 -sys ps1    # search and pick the version now
+romkit queue add spyro the dragon -sys ps1
+romkit queue                                    # what is waiting, and what is half done
+romkit queue run                                # download everything
+```
+
+- You choose the version when you **add** a game, so `queue run` never stops to ask and can run
+  while you are away.
+- `download.parallel` games (default 2) download at the same time; then each one is organized, one
+  at a time.
+- A file that needs a decision (an archive with several ROMs, an uncertain name, a name already in
+  the library) is moved to `<inbox>\<system id>\` instead of holding up the queue. Run
+  `romkit inbox` afterwards and it asks you.
+- **Unfinished downloads are kept in the queue**, including the ones started with a plain
+  `romkit download`: `romkit queue` shows how much of each is saved, and `romkit queue run`
+  continues them. Ctrl+C pauses the whole queue.
+
+The list is `romkit.queue.json`, next to the config. The unfinished files themselves are in
+`<tempDirectory>\partial\`; `romkit queue remove` deletes them with their items.
 
 ### Changing settings from the terminal
 

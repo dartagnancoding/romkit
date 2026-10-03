@@ -16,6 +16,7 @@ import { runImportCommand } from "./commands/importCommand";
 import { runInboxCommand } from "./commands/inboxCommand";
 import { runInitCommand } from "./commands/initCommand";
 import { runOrganizeCommand } from "./commands/organizeCommand";
+import { runQueueCommand } from "./commands/queueCommand";
 import { runSourcesCommand } from "./commands/sourcesCommand";
 import { runSystemsCommand } from "./commands/systemsCommand";
 import { runVerifyCommand } from "./commands/verifyCommand";
@@ -44,6 +45,14 @@ const COMMANDS: CommandDefinition[] = [
     flags: ["system", "source", "yes", "keepTemp", "refresh"],
     needsConfig: true,
     run: runDownloadCommand,
+  },
+  {
+    name: "queue",
+    usage: "romkit queue [list | add <title> [-sys <system>] | run | remove <n...|all>]",
+    summary: "Line up downloads (and unfinished ones) and download them all, several at a time",
+    flags: ["system", "source", "yes", "keepTemp", "refresh"],
+    needsConfig: true,
+    run: runQueueCommand,
   },
   {
     name: "import",
@@ -156,8 +165,8 @@ export async function runCli(argumentList: string[]): Promise<number> {
   const prompter = new Prompter();
   try {
     if (command.needsConfig) {
-      // Only `download` uses the sources; other commands tolerate problems there.
-      const config = await loadConfig(configPath, { requireValidSources: command.name === "download" });
+      // Only `download` and `queue` use the sources; other commands tolerate problems there.
+      const config = await loadConfig(configPath, { requireValidSources: command.name === "download" || command.name === "queue" });
       logger.configure({ logFilePath: config.logFile });
       logger.fileOnly(`romkit ${packageJson.version}: ${argumentList.join(" ")}`, "info");
       logger.debug(`Config: ${configPath}`);
@@ -186,6 +195,7 @@ function printGeneralHelp(topic: string | undefined): void {
   }
   console.log(`\n${style.bold("Examples:")}`);
   console.log("  romkit download mega man zero 4 -sys gba");
+  console.log("  romkit queue add crash bandicoot 2 -sys ps1    # then: romkit queue run");
   console.log('  romkit import "$HOME\\Downloads\\game.zip" -sys gba');
   console.log("  romkit inbox                     # organize everything in Downloads\\dump");
   console.log("  romkit organize -sys gba --dry-run");

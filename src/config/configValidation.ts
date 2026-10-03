@@ -116,6 +116,10 @@ function validateDownloadSettings(download: unknown, problems: string[]): void {
   if (connections !== undefined && !(Number.isInteger(connections) && (connections as number) >= 1 && (connections as number) <= 16)) {
     problems.push(`"download.connections" must be a whole number from 1 to 16.`);
   }
+  const parallel = download.parallel;
+  if (parallel !== undefined && !(Number.isInteger(parallel) && (parallel as number) >= 1 && (parallel as number) <= 4)) {
+    problems.push(`"download.parallel" must be a whole number from 1 to 4.`);
+  }
   if (download.aria2cPath != null && !isNonEmptyString(download.aria2cPath)) problems.push(`"download.aria2cPath" must be a path or null.`);
 }
 

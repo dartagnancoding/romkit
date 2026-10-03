@@ -186,20 +186,45 @@ export function filterListByQuery(
   query: string,
   preferences: ReleasePreferences,
 ): SearchResult[] {
+  return scoreResults(results, query)
+    .filter((entry) => entry.score >= MINIMUM_LIST_SCORE)
+    .sort((first, second) => compareScored(first, second, preferences))
+    .slice(0, MAX_LIST_RESULTS)
+    .map((entry) => entry.result);
+}
+
+/**
+ * Orders results from several sources as one list: best match first, then the
+ * preferred release. Nothing is dropped. Without it, results would come grouped by
+ * source, and an exact match from the last source would sit below loose ones.
+ */
+export function sortByRelevance(results: SearchResult[], query: string, preferences: ReleasePreferences): SearchResult[] {
+  return scoreResults(results, query)
+    .sort((first, second) => compareScored(first, second, preferences))
+    .map((entry) => entry.result);
+}
+
+interface ScoredResult {
+  result: SearchResult;
+  score: number;
+  tags: RomTag[];
+}
+
+function scoreResults(results: SearchResult[], query: string): ScoredResult[] {
   const normalizedQuery = normalizeTitleForComparison(query);
   const compactQuery = compactKey(query);
-  const scored: { result: SearchResult; score: number; tags: RomTag[] }[] = [];
-  for (const result of results) {
+  return results.map((result) => {
     const { title, tags } = parseRomName(result.title);
     const normalizedTitle = normalizeTitleForComparison(title);
     // "megaman 3" and "Mega Man 3" differ only in spaces.
     const score = compactKey(title) === compactQuery ? 1 : Math.max(titleSimilarity(normalizedQuery, normalizedTitle), containmentScore(normalizedQuery, normalizedTitle));
-    if (score >= MINIMUM_LIST_SCORE) scored.push({ result, score, tags });
-  }
-  return scored
-    .sort((first, second) => second.score - first.score || compareReleases(second.tags, first.tags, preferences))
-    .slice(0, MAX_LIST_RESULTS)
-    .map((entry) => entry.result);
+    return { result, score, tags };
+  });
+}
+
+/** Array.sort is stable, so equal entries keep the source order. */
+function compareScored(first: ScoredResult, second: ScoredResult, preferences: ReleasePreferences): number {
+  return second.score - first.score || compareReleases(second.tags, first.tags, preferences);
 }
 
 /**

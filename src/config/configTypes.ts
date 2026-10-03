@@ -26,6 +26,8 @@ export interface DownloadSettings {
   tool: DownloadTool;
   /** aria2c only: connections per file. */
   connections: number;
+  /** `romkit queue run`: games downloaded at the same time. */
+  parallel: number;
   /** aria2c.exe; null looks for it on PATH and in winget's install folder. */
   aria2cPath: string | null;
 }
@@ -183,7 +185,7 @@ export const DEFAULT_HTTP_SETTINGS: HttpSettings = {
   delayBetweenRequestsMs: 1_500,
 };
 
-export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = { tool: "auto", connections: 4, aria2cPath: null };
+export const DEFAULT_DOWNLOAD_SETTINGS: DownloadSettings = { tool: "auto", connections: 4, parallel: 2, aria2cPath: null };
 
 export const DEFAULT_NAMING: NamingSettings = { template: "{title}", keepTags: [] };
 export const DEFAULT_AUTO_ACCEPT_THRESHOLD = 0.9;
