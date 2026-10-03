@@ -10,11 +10,13 @@ import { logger } from "../logging/logger";
 import { FLAG_DEFINITIONS, getFlagDefinition, parseArguments, type FlagKey } from "./argumentParser";
 import type { BasicCommandContext, CommandContext } from "./commandContext";
 import { runAuditCommand } from "./commands/auditCommand";
+import { runConfigCommand } from "./commands/configCommand";
 import { runDownloadCommand } from "./commands/downloadCommand";
 import { runImportCommand } from "./commands/importCommand";
 import { runInboxCommand } from "./commands/inboxCommand";
 import { runInitCommand } from "./commands/initCommand";
 import { runOrganizeCommand } from "./commands/organizeCommand";
+import { runSourcesCommand } from "./commands/sourcesCommand";
 import { runSystemsCommand } from "./commands/systemsCommand";
 import { runVerifyCommand } from "./commands/verifyCommand";
 import { Prompter } from "./prompts";
@@ -92,9 +94,25 @@ const COMMANDS: CommandDefinition[] = [
     run: runSystemsCommand,
   },
   {
+    name: "sources",
+    usage: "romkit sources [list | export <file> [-sys <system>] | import <file or link>]",
+    summary: "List, export or import download sources (to share them or set up another PC)",
+    flags: ["system", "yes"],
+    needsConfig: false,
+    run: runSourcesCommand,
+  },
+  {
+    name: "config",
+    usage: "romkit config [<setting> [<value>] | open | path]",
+    summary: "Show and change settings: folders, 7-Zip, downloader, preferred regions",
+    flags: [],
+    needsConfig: false,
+    run: runConfigCommand,
+  },
+  {
     name: "init",
     usage: "romkit init",
-    summary: "Create the config file",
+    summary: "Create the config file (folders, 7-Zip, aria2c, sources)",
     flags: [],
     needsConfig: false,
     run: runInitCommand,
@@ -169,9 +187,11 @@ function printGeneralHelp(topic: string | undefined): void {
   console.log(`\n${style.bold("Examples:")}`);
   console.log("  romkit download mega man zero 4 -sys gba");
   console.log('  romkit import "$HOME\\Downloads\\game.zip" -sys gba');
-  console.log("  romkit inbox                     # organize everything in Downloads\dump");
+  console.log("  romkit inbox                     # organize everything in Downloads\\dump");
   console.log("  romkit organize -sys gba --dry-run");
   console.log("  romkit systems add playstation");
+  console.log("  romkit config libraryRoot D:\\Games");
+  console.log("  romkit sources import https://example.com/my-sources.json");
   console.log(`\nRun ${style.cyan("romkit <command> --help")} for the options of a command.`);
 }
 

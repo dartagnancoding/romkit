@@ -40,7 +40,8 @@ O `.bat` está em [`scripts/`](scripts/Organizar%20dump.bat). Copie para onde qu
 - **Verificar**: `romkit verify` confere seus arquivos contra os DATs do No-Intro/Redump e lista o que não for um dump bom conhecido.
 - **Auditar**: `romkit audit` gera um relatório, só de leitura, de qualquer pasta. Ele lista duplicatas (e qual cópia ficaria), nomes a corrigir, arquivos não verificados e arquivos avulsos.
 - **MAME**: os zips de arcade são guardados intactos, porque o emulador precisa do nome original.
-- **Download**: busca em sites que você configurar. Ele nunca tenta passar por captchas ou proteções anti-bot: para e te mostra o link.
+- **Download**: busca em sites que você configurar, inclusive listas simples de arquivos. Arquivos grandes continuam de onde pararam se a conexão cair ou você apertar Ctrl+C, e ficam mais rápidos com o [aria2c](https://aria2.github.io/) instalado. Ele nunca tenta passar por captchas ou proteções anti-bot: para e te mostra o link.
+- **Levar a configuração para outro PC**: `romkit sources export` / `import` leva suas fontes (e os sistemas que elas usam) para outro computador.
 
 ## Começo rápido
 
@@ -52,7 +53,8 @@ cd romkit
 bun install
 bun link                      # deixa o comando `romkit` disponível
 
-romkit init                   # cria a configuração
+romkit init                   # cria a configuração (pastas, 7-Zip, aria2c, fontes)
+romkit config                 # vê e muda as configurações depois
 romkit systems add gba        # adiciona um sistema (repita para cada console)
 romkit inbox                  # organiza tudo que estiver em Downloads\dump
 romkit import "$HOME\Downloads\jogo.zip" -sys gba

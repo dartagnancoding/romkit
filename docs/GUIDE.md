@@ -82,6 +82,11 @@ romkit systems add playstation
 romkit systems                # list what is configured
 ```
 
+`init` asks for the library and inbox folders (type a path, or `e` to pick it in Explorer), finds
+7-Zip and aria2c (offering to install them with winget) and can import a sources file or link (see
+[Sharing sources](#sharing-sources)). When the sources come with their systems, nothing else is
+needed: `romkit download <game> -sys <system>` works right away.
+
 ---
 
 ## Commands
@@ -97,6 +102,12 @@ romkit systems                # list what is configured
 | `romkit systems` | List configured systems |
 | `romkit systems add [name]` | Add a system (with catalog suggestions) |
 | `romkit systems remove <id>` | Remove a system from the config (files are not touched) |
+| `romkit sources` | List the download sources |
+| `romkit sources export <file> [-sys <system>]` | Save sources and the systems they need, to share or move to another PC |
+| `romkit sources import <file or link>` | Add sources from such a file (names already in the config are kept) |
+| `romkit config` | Show the main settings and change them, one by one |
+| `romkit config <setting> [<value>]` | Show or change one setting (`default` resets an optional one) |
+| `romkit config open` / `path` | Open the config file in Notepad / print where it is |
 | `romkit init` | Create the config file |
 
 Options:
@@ -107,6 +118,7 @@ Options:
 | `--dry-run`, `-n` | `organize`: only show the plan |
 | `--yes`, `-y` | Accept every name suggestion, even low-confidence ones. When the name is already taken, the file is **skipped**. |
 | `--source <name>` | `download`: search only this source |
+| `--refresh` | `download`: fetch list pages again instead of the copies kept for 7 days |
 | `--delete-source` | `import`: delete the original file after a successful import (otherwise it is left untouched) |
 | `--keep-source` | `inbox`: copy instead of moving, so the inbox keeps its files |
 | `--keep-temp` | Keep the temporary folder, to inspect what an archive contained |
@@ -294,6 +306,24 @@ finds it and its own downloader otherwise.
 | `connections` | `4` | aria2c connections per file (1 to 16) |
 | `aria2cPath` | `null` | path to `aria2c.exe`; `null` looks on PATH and in winget's folders |
 
+### Changing settings from the terminal
+
+`romkit config` lists the main settings with numbers and lets you change them one at a time. For
+folders and files, type or paste a path, or answer `e` to pick it in Explorer. In a script, use the
+direct form:
+
+```powershell
+romkit config libraryRoot D:\Games         # folders: absolute, or relative to the config file
+romkit config regionOrder "Europe, USA, Japan"
+romkit config connections 8                # aria2c connections per file
+romkit config inboxDirectory default       # back to %USERPROFILE%\Downloads\dump
+```
+
+Settings: `libraryRoot`, `inboxDirectory`, `sevenZipPath`, `tempDirectory`, `download.tool`,
+`download.connections`, `download.aria2cPath`, `preferences.regionOrder`, `preferences.translations`,
+`matching.autoAcceptThreshold`. The last part of the name is enough (`connections`). Changing
+`libraryRoot` does not move files that are already in the old folder.
+
 ### Log file
 
 Every run is appended to `%LOCALAPPDATA%\romkit\romkit.log` (or `logFile`), debug details included,
@@ -467,6 +497,25 @@ romkit reads the whole list and offers only the entries whose name resembles wha
 finds `Mega Man 3`). The best match comes first, and among equal matches the preferred release comes
 first (see [One version per game](#one-version-per-game-duplicates)). The folder part of the entry (`USA/`,
 `Hacks/`) is shown in the list but never ends up in the file name.
+
+### Sharing sources
+
+Sources take time to set up, so they can be moved between PCs as a file:
+
+```powershell
+romkit sources export my-sources.json          # every source, plus the systems they serve
+romkit sources export ps1.json -sys ps1        # only one system's sources
+romkit sources import my-sources.json          # on the other PC (a https:// link works too)
+```
+
+An export carries the definition of each system its sources serve (name, folder, extensions), so the
+import also creates the systems that PC is missing, with folders inside its own `libraryRoot`. Sources
+whose name is already in the config are kept as they are. DAT paths are not exported, since they
+point to files on your PC.
+
+Keep your sources file out of public repositories: a list of links to ROM sets is the kind of
+thing that gets a repository taken down. A private repository or a secret gist works, and
+`romkit sources import` accepts its raw link.
 
 ### Writing a source adapter
 
